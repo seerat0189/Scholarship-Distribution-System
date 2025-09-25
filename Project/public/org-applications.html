@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Org Applications</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-gray-50">
+    <nav class="bg-gray-800 p-4 text-white flex justify-between">
+  <span class="font-bold">Organisation Portal</span>
+  <a href="/landing.html" class="bg-indigo-600 px-4 py-2 rounded hover:bg-indigo-700">🏠 Home</a>
+</nav>
+
+  <div class="max-w-6xl mx-auto mt-8 px-4">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-bold">Applications for your Scholarships</h1>
+      <div>
+        <a href="/post-scholarship.html" class="mr-3 text-indigo-600">Post Scholarship</a>
+        <button id="logout" class="text-red-600">Logout</button>
+      </div>
+    </div>
+    <div id="apps">Loading applications...</div>
+  </div>
+
+<script>
+document.getElementById('logout').addEventListener('click', async ()=> { await fetch('/api/logout', {method:'POST'}); location.href='/landing.html'; });
+
+async function loadApps(){
+  // get whoami to find orgId
+  try {
+    const who = await (await fetch('/api/whoami')).json();
+    if (!who.session || who.session.type !== 'ORG') { document.getElementById('apps').innerText = 'Please login as organisation.'; return; }
+    const orgId = who.session.id;
+    const r = await fetch(`/api/org/${orgId}/applications`);
+    if (!r.ok) { document.getElementById('apps').innerText = 'Error fetching applications'; return; }
+    const apps = await r.json();
+    if (!apps || apps.length===0) { document.getElementById('apps').innerHTML = '<p>No applications yet.</p>'; return; }
+    const html = apps.map(a => {
+      const profiles = (a.user.profiles || []).map(p=> `<div class="text-sm">${p.name} • ${p.college} • CGPA: ${p.cgpa}</div>`).join('');
+      return `<div class="bg-white p-4 rounded mb-3 shadow">
+        <div class="flex justify-between"><div><strong>${a.user.name}</strong> (${a.user.email})</div><div>${a.status}</div></div>
+        <div class="mt-2"><em>Scholarship:</em> ${a.scholarship.scholarship_name}</div>
+        <div class="mt-2">${profiles}</div>
+        <div class="mt-3">
+          <button data-id="${a.id}" data-action="approved" class="approveBtn bg-green-600 text-white px-3 py-1 rounded mr-2">Approve</button>
+          <button data-id="${a.id}" data-action="rejected" class="rejectBtn bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('apps').innerHTML = html;
+    document.querySelectorAll('.approveBtn, .rejectBtn').forEach(b=>{
+      b.addEventListener('click', async (e) => {
+        const id = b.getAttribute('data-id'), action = b.getAttribute('data-action');
+        const resp = await fetch(`/api/application/${id}/decision`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ decision: action })});
+        const j = await resp.json();
+        if (resp.ok) { alert('Updated'); loadApps(); } else alert(j.message || 'Error');
+      });
+    });
+  } catch (err) { console.error(err); document.getElementById('apps').innerText = 'Server error'; }
+}
+
+loadApps();
+</script>
+</body>
+</html>

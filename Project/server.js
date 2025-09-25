@@ -26,12 +26,36 @@ function requireUser(req, res, next) {
   if (req.session && req.session.user && req.session.user.type === 'USER') return next();
   return res.status(401).json({ error: 'Login required as user.' });
 }
+function requireOrg(req, res, next) {
+  if (req.session && req.session.user && req.session.user.type === 'ORG') return next();
+  return res.status(401).json({ error: 'Login required as organisation.' });
+}
 
 app.get('/api/profile', requireUser, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const profiles = await prisma.profile.findMany({ where: { userId }});
     res.json(profiles);
+  } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// Post scholarship (organisation)
+app.post('/api/scholarship', requireOrg, async (req, res) => {
+  try {
+    const orgId = req.session.user.id;
+    const { scholarship_name, eligibility, amount, minimum_cgpa } = req.body;
+    if (!scholarship_name || !amount) return res.status(400).json({ message: 'scholarship_name & amount required' });
+
+    const s = await prisma.scholarship.create({
+      data: {
+        scholarship_name,
+        eligibility: eligibility || '',
+        minimum_cgpa: minimum_cgpa ? parseFloat(minimum_cgpa) : null,
+        amount: parseFloat(amount),
+        organisationId: orgId
+      }
+    });
+    res.status(201).json({ message: 'Scholarship posted', scholarship: s });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
 });
 
@@ -74,6 +98,34 @@ app.post('/api/scholarship/:id/apply', requireUser, async (req, res) => {
     res.status(201).json({ message: 'Application submitted', application });
   } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
 });
+
+// Organisation: list applications for all scholarships of this org
+app.get('/api/org/:orgId/applications', requireOrg, async (req, res) => {
+  try {
+    const orgId = parseInt(req.params.orgId);
+    // ensure logged org matches requested orgId
+    if (req.session.user.id !== orgId) return res.status(403).json({ message: 'Forbidden' });
+
+    const applications = await prisma.application.findMany({
+  where: {
+    scholarship: {
+      organisationId: orgId   
+    }
+  },
+  include: {
+    user: {
+      include: { profiles: true }  
+    },
+    scholarship: true
+  },
+  orderBy: {
+    appliedAt: "desc"
+  }
+});
+    res.json(applications);
+  } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
+});
+
 
 app.post('/api/application/:id/decision', requireOrg, async (req, res) => {
   try {
