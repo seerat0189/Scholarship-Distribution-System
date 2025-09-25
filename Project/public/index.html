@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>All Scholarships</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-gray-50">
+  <nav class="bg-white p-4 shadow">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <div><a href="/landing.html" class="text-indigo-600 font-bold">Scholarship Portal</a></div>
+      <div id="nav-links">
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto mt-8 px-4">
+    <h1 class="text-3xl font-bold mb-4">Available Scholarships</h1>
+    <div id="container" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3"></div>
+  </main>
+
+<script>
+let currentUser = null;
+
+// Check login status
+async function checkAuth() {
+  try {
+    const res = await fetch('/auth/status');
+    const data = await res.json();
+    const nav = document.getElementById('nav-links');
+    nav.innerHTML = '';
+
+    if(data.loggedIn) {
+      currentUser = data.user;
+      // Profile icon
+      const profileBtn = document.createElement('button');
+      profileBtn.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="w-8 h-8 rounded-full">`;
+      profileBtn.onclick = () => location.href = '/user-dashboard.html';
+      nav.appendChild(profileBtn);
+    } else {
+      nav.innerHTML = `
+        <a href="/user-login.html" class="mr-4">User Login</a>
+        <a href="/org-login.html">Org Login</a>
+      `;
+    }
+  } catch(err) {
+    console.error('Failed to check auth', err);
+  }
+}
+
+// Load scholarships
+async function load() {
+  const c = document.getElementById('container');
+  c.innerHTML = 'Loading...';
+  try {
+    const r = await fetch('/api/scholarships');
+    const list = await r.json();
+    if (!Array.isArray(list) || list.length===0){ c.innerHTML = '<p>No scholarships posted yet.</p>'; return; }
+    c.innerHTML = '';
+
+    list.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'bg-white p-4 rounded shadow';
+      
+      // Determine button label
+      let btnLabel = 'Apply';
+      let disabled = '';
+      if(s.applications && s.applications.length > 0) {
+        const appStatus = s.applications.find(a => a.userId === currentUser?.id)?.status;
+        if(appStatus) {
+          btnLabel = appStatus.charAt(0).toUpperCase() + appStatus.slice(1);
+          disabled = 'disabled';
+        }
+      }
+
+      const cgpa = s.minimum_cgpa ? `<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded mr-2">CGPA: ${s.minimum_cgpa}</span>` : '';
+
+      div.innerHTML = `
+        <h3 class="text-lg font-semibold">${s.scholarship_name}</h3>
+        <div class="text-sm text-gray-500">${s.organisation.name} • <a href="${s.organisation.website_link}" target="_blank" class="text-indigo-600">Website</a></div>
+        <p class="mt-2 text-gray-700">${s.eligibility || ''}</p>
+        <div class="mt-3 flex items-center justify-between">
+          <div><strong>$${Number(s.amount).toLocaleString()}</strong> ${cgpa}</div>
+          <div>
+            <button class="applyBtn bg-indigo-600 text-white px-3 py-1 rounded" data-id="${s.id}" ${disabled}>${btnLabel}</button>
+          </div>
+        </div>
+      `;
+      c.appendChild(div);
+    });
+
+    document.querySelectorAll('.applyBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      if(!currentUser) {
+        if(confirm('Login as user to apply. Go to login?')) location.href = '/user-login.html';
+        return;
+      }
+
+      const res = await fetch(`/api/scholarship/${id}/apply`, { method: 'POST' });
+      const j = await res.json();
+      if(res.ok) {
+        e.target.textContent = 'Applied';
+        e.target.disabled = true;
+      } else {
+        alert(j.message || 'Error applying');
+      }
+    }));
+
+  } catch (err) { 
+    c.innerHTML = '<p class="text-red-500">Failed to load scholarships</p>'; 
+    console.error(err); 
+  }
+}
+
+checkAuth();
+load();
+</script>
+</body>
+</html>

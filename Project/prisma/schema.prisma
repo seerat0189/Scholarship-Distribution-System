@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  name         String
+  email        String      @unique
+  password     String
+  profiles     Profile[]
+  applications Application[]
+  createdAt    DateTime    @default(now())
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  age       Int
+  gender    String
+  college   String
+  degree    String
+  cgpa      Float
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Organisation {
+  id                  Int           @id @default(autoincrement())
+  name                String
+  website_link        String
+  registration_id     String        @unique
+  password            String
+  posted_scholarships Scholarship[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model Scholarship {
+  id               Int           @id @default(autoincrement())
+  scholarship_name String
+  eligibility      String?
+  minimum_cgpa     Float?
+  amount           Float
+  organisation     Organisation  @relation(fields: [organisationId], references: [id])
+  organisationId   Int
+  applications     Application[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model Application {
+  id            Int         @id @default(autoincrement())
+  status        String      @default("pending") // pending | approved | rejected
+  user          User        @relation(fields: [userId], references: [id])
+  userId        Int
+  scholarship   Scholarship @relation(fields: [scholarshipId], references: [id])
+  scholarshipId Int
+  appliedAt     DateTime    @default(now())
+}
