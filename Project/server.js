@@ -38,7 +38,69 @@ app.get('/api/profile', requireUser, async (req, res) => {
     res.json(profiles);
   } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
 });
+ // Organisation register
+app.post('/api/org/register', async (req, res) => {
+  try {
+    const { name, website_link, registration_id, password } = req.body;
+    if (!name || !website_link || !registration_id || !password)
+      return res.status(400).json({ message: 'Missing fields' });
 
+    const exists = await prisma.organisation.findUnique({ where: { registration_id } });
+    if (exists)
+      return res.status(400).json({ message: 'Organisation already exists with this registration id' });
+
+    // Hash the password
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Store in database (ensure your Prisma schema has password field!)
+    const org = await prisma.organisation.create({
+        data: { name, website_link, registration_id, password: hashed }
+    });
+
+
+    // Save session
+    req.session.user = { id: org.id, type: 'ORG', registration_id, name: org.name };
+    res.status(201).json({
+      message: 'Organisation registered successfully',
+      organisation: { id: org.id, name: org.name, registration_id }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Organisation login
+app.post('/api/org/login', async (req, res) => {
+  try {
+    const { registration_id, password } = req.body;
+    const org = await prisma.organisation.findUnique({ where: { registration_id } });
+    if (!org) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // Compare password with hashed password in DB
+    const ok = await bcrypt.compare(password, org.password);
+    if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // Save session
+    req.session.user = { id: org.id, type: 'ORG', registration_id, name: org.name };
+    res.json({
+      message: 'Organisation login successful',
+      organisation: { id: org.id, name: org.name, registration_id }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Logout
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => res.json({ message: 'Logged out' }));
+});
 // Post scholarship (organisation)
 app.post('/api/scholarship', requireOrg, async (req, res) => {
   try {
@@ -150,6 +212,11 @@ app.get("/auth/status", (req, res) => {
   }
 });
 
+// ----------------- Convenience endpoints -----------------
+// whoami
+app.get('/api/whoami', (req, res) => {
+  res.json({ session: req.session.user || null });
+});
 
 // start
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
