@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Register</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #fdfbfb, #ebedee); 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      width: 900px;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      background: #fff;
+    }
+
+    .image-section {
+      flex: 1;
+      background: url('https://images.unsplash.com/photo-1508780709619-79562169bc64') no-repeat center center;
+      background-size: cover;
+      filter: brightness(0.9); 
+    }
+
+    .form-section {
+      flex: 1;
+      padding: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    h2 {
+      margin-bottom: 30px;
+      font-size: 32px;
+      color: #333;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    input {
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      outline: none;
+      background: #f7f7f7;
+      transition: 0.3s;
+    }
+
+    input:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0,123,255,0.3);
+      background: #fff;
+    }
+
+    button {
+      padding: 14px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: #007bff;
+      color: #fff;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    .footer {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    #msg {
+      margin-top: 15px;
+      font-size: 14px;
+      color: red;
+    }
+
+    @media(max-width: 900px){
+      .container { flex-direction: column; width: 90%; }
+      .image-section { height: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="image-section"></div>
+    <div class="form-section">
+      <h2>Create Account</h2>
+      <form id="regForm">
+        <input name="name" type="text" placeholder="Full Name" required>
+        <input name="email" type="email" placeholder="Email Address" required>
+        <input name="password" type="password" placeholder="Password" required>
+        <button type="submit">Register</button>
+      </form>
+      <div class="footer">
+        Already have an account? <a href="/user-login.html">Login</a>
+      </div>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('regForm');
+    const msg = document.getElementById('msg');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      const data = Object.fromEntries(new FormData(form).entries());
+      try {
+        const res = await fetch('/api/user/register', { 
+          method: 'POST', 
+          headers: {'Content-Type':'application/json'}, 
+          body: JSON.stringify(data) 
+        });
+        const j = await res.json();
+        if (res.ok) {
+          msg.style.color = "green";
+          msg.textContent = 'Registered and logged in. Redirecting to user dashboard...';
+          setTimeout(()=> location.href = '/user-dashboard.html', 800);
+        } else {
+          msg.style.color = "red";
+          msg.textContent = j.message || 'Error';
+        }
+      } catch (err) { 
+        msg.textContent = 'Server error'; 
+        console.error(err); 
+      }
+    });
+  </script>
+</body>
+</html>
