@@ -38,6 +38,42 @@ app.get('/api/profile', requireUser, async (req, res) => {
     res.json(profiles);
   } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
 });
+
+// User register
+app.post('/api/user/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ message: 'name,email,password required' });
+
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists) return res.status(400).json({ message: 'User already exists' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({ data: { name, email, password: hashed } });
+    req.session.user = { id: user.id, type: 'USER', email: user.email };
+    res.status(201).json({ message: 'User registered', user: { id: user.id, name: user.name, email: user.email }});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// User login
+app.post('/api/user/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
+
+    req.session.user = { id: user.id, type: 'USER', email: user.email };
+    res.json({ message: 'Login successful', user: { id: user.id, name: user.name, email: user.email }});
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+});
+
  // Organisation register
 app.post('/api/org/register', async (req, res) => {
   try {
@@ -101,6 +137,24 @@ app.post('/api/org/login', async (req, res) => {
 app.post('/api/logout', (req, res) => {
   req.session.destroy(() => res.json({ message: 'Logged out' }));
 });
+
+// Save user profile (dashboard)
+app.post('/api/profile', requireUser, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const { name, email, age, gender, college, degree, cgpa } = req.body;
+    if (!name || !email) return res.status(400).json({ message: 'name & email required' });
+
+    // Create or update a profile (we'll create a new profile record)
+    const profile = await prisma.profile.create({
+      data: {
+        name, email, age: parseInt(age || 0), gender: gender || '', college: college || '', degree: degree || '', cgpa: parseFloat(cgpa || 0),
+        userId
+      }
+    });
+    res.status(201).json({ message: 'Profile saved', profile });
+  } catch (err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
+}); 
 // Post scholarship (organisation)
 app.post('/api/scholarship', requireOrg, async (req, res) => {
   try {
@@ -220,3 +274,4 @@ app.get('/api/whoami', (req, res) => {
 
 // start
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
