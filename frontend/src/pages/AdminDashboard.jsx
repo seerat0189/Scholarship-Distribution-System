@@ -36,7 +36,7 @@ export default function AdminDashboard() {
       <h3 className="mt-6 text-lg font-semibold">All Scholarships</h3>
       <ul>
         {scholarships.map((s) => (
-          <li key={s.id} className="border p-2">{s.title} — {s.company.name}</li>
+          <li key={s.id} className="border p-2">{s.scholarshipName} — {s.organization.name}</li>
         ))}
       </ul>
     </div>

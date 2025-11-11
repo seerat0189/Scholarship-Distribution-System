@@ -1,17 +1,33 @@
-import prisma from "../models/prismaClient.js";
+const prisma = require("../models/prismaClient.js");
 
-export const getAllUsers = async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.json(users);
+module.exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-export const getAllScholarships = async (req, res) => {
-  const scholarships = await prisma.scholarship.findMany({ include: { company: true } });
-  res.json(scholarships);
+module.exports.getAllScholarships = async (req, res) => {
+  try {
+    const scholarships = await prisma.scholarship.findMany({
+      include: {
+        organization: true, // <-- This was 'company'
+      },
+    });
+    res.json(scholarships);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-export const deleteUser = async (req, res) => {
-  const { id } = req.params;
-  await prisma.user.delete({ where: { id: parseInt(id) } });
-  res.json({ message: "User deleted successfully" });
+module.exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.delete({ where: { id: parseInt(id) } });
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

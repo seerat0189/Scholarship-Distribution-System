@@ -1,9 +1,11 @@
 const express = require("express");
-const { register, login } = require("../controllers/authController");
+// Import all three functions from our controller
+const { register, registerOrg, login } = require("../controllers/authController");
 
 const router = express.Router();
 
 router.post("/register", register);
+router.post("/register-org", registerOrg); // This line will no longer crash
 router.post("/login", login);
 
 module.exports = router;

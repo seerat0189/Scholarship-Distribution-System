@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  // output   = "../node_modules/.prisma/client"
   // output   = "../src/generated/prisma"
 }
 
@@ -50,6 +49,10 @@ model Scholarship {
   organization    Organization    @relation(fields: [organizationId], references: [id])
   applications    Application[]
   createdAt       DateTime @default(now())
+
+  // --- ADD THESE TWO LINES ---
+  testMode        Boolean  @default(false)
+  testQuestionId  String?  // The ID of the question from your questions.json
 }
 
 model Application {
@@ -58,8 +61,11 @@ model Application {
   scholarshipId  Int
   user           User         @relation(fields: [userId], references: [id])
   scholarship    Scholarship  @relation(fields: [scholarshipId], references: [id])
-  status         String       @default("Pending")
+  status         String       @default("Pending") // "Pending", "Accepted", "Rejected"
   createdAt      DateTime     @default(now())
+
+  // --- ADD THIS LINE ---
+  testScore      Int?         // Stores the score (e.g., hidden cases passed)
 }
 
 model Profile {

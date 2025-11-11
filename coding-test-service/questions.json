@@ -1,0 +1,59 @@
+[
+  {
+    "id": "two-sum",
+    "title": "Two Sum",
+    "description": "Given an array of integers 'nums' and an integer 'target', return indices of the two numbers such that they add up to 'target'.\\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.",
+    "boilerplate": {
+      "python": "def twoSum(nums, target):\n    # Write your code here\n    pass\n",
+      "java": "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // Write your code here\n        return new int[2];\n    }\n}\n"
+    },
+    "testCases": {
+      "sample": [
+        { "input": "[2, 7, 11, 15]\n9", "expectedOutput": "[0, 1]", "isSample": true }
+      ],
+      "hidden": [
+        { "input": "[3, 2, 4]\n6", "expectedOutput": "[1, 2]", "isSample": false }
+      ]
+    }
+  },
+  {
+    "id": "q1-add-two",
+    "title": "Add Two Numbers",
+    "description": "Read two integers from standard input, one on each line, and print their sum to standard output.",
+    "boilerplate": {
+      "python": "# Read two lines of input\na = int(input())\nb = int(input())\n\n# Write your code here to calculate and print the sum\n# ...\n",
+      "java": "import java.util.Scanner;\n\n// The class name MUST be Main\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n\n        // Write your code here to calculate and print the sum\n        // ...\n    }\n}\n"
+    },
+    "testCases": {
+      "sample": [
+        {
+          "input": "5\n10",
+          "expectedOutput": "15",
+          "isSample": true
+        },
+        {
+          "input": "2\n2",
+          "expectedOutput": "4",
+          "isSample": true
+        }
+      ],
+      "hidden": [
+        {
+          "input": "-3\n3",
+          "expectedOutput": "0",
+          "isSample": false
+        },
+        {
+          "input": "100\n200",
+          "expectedOutput": "300",
+          "isSample": false
+        },
+        {
+          "input": "0\n0",
+          "expectedOutput": "0",
+          "isSample": false
+        }
+      ]
+    }
+  }
+]

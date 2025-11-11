@@ -1,18 +1,18 @@
-const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
+const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
 
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-const companyRoutes = require("./routes/companyRoutes");
+const companyRoutes = require("./routes/organizationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
 // Middleware
 const errorHandler = require("./middleware/errorMiddleware");
 
-dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
@@ -31,6 +31,17 @@ app.get("/", async (req, res) => {
   }
 });
 
+// app.get("/api/questions", (req, res) => {
+//   try {
+//     const questionList = questions.map(q => ({
+//       id: q.id,
+//       title: q.title
+//     }));
+//     res.json(questionList);
+//   } catch (e) {
+//     res.status(500).json({ error: "Failed to load questions" });
+//   }
+// });
 
 // console.log({
 //   authRoutes,

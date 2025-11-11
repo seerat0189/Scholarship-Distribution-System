@@ -1,8 +1,9 @@
 const jwt = require("jsonwebtoken");
 
-const generateToken = (user) => {
+// Changed to accept a payload object
+const generateToken = (payload) => {
   return jwt.sign(
-    { id: user.id, role: user.role, email: user.email },
+    payload, // Sign the whole payload (id, email, role)
     process.env.JWT_SECRET,
     { expiresIn: "1d" }
   );
