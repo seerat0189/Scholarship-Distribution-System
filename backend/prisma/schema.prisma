@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../node_modules/.prisma/client"
+  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  age       Int?
+  gender    String?
+  cgpa      Float?
+  college   String?
+  degree    String?
+  profiles  Profile[]
+  applications Application[]
+  createdAt DateTime @default(now())
+}
+
+model Organization {
+  id              Int             @id @default(autoincrement())
+  name            String
+  email           String   @unique
+  password        String
+  scholarships    Scholarship[]
+  createdAt       DateTime @default(now())
+}
+
+model Scholarship {
+  id              Int             @id @default(autoincrement())
+  scholarshipName String
+  eligibility     String?
+  amount          Float
+  minimumCgpa     Float?
+  organizationId  Int
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  applications    Application[]
+  createdAt       DateTime @default(now())
+}
+
+model Application {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  scholarshipId  Int
+  user           User         @relation(fields: [userId], references: [id])
+  scholarship    Scholarship  @relation(fields: [scholarshipId], references: [id])
+  status         String       @default("Pending")
+  createdAt      DateTime     @default(now())
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  email     String
+  cgpa      Float?
+  college   String?
+  degree    String?
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ORGANIZATION
+  ADMIN
+}
