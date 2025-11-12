@@ -1,12 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file
+// Learn more at https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
-  // output   = "../src/generated/prisma"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -15,28 +12,34 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  age       Int?
-  gender    String?
-  cgpa      Float?
-  college   String?
-  degree    String?
-  profiles  Profile[]
-  applications Application[]
-  createdAt DateTime @default(now())
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  password       String
+  role           Role            @default(USER)
+  age            Int?
+  gender         String?
+  cgpa           Float?
+  college        String?
+  degree         String?
+  profiles       Profile[]
+  applications   Application[]
+  createdAt      DateTime        @default(now())
+
+  // 🧩 Relation: messages sent by this user
+  sentMessages   ChatMessage[]   @relation("UserSentMessages")
 }
 
 model Organization {
-  id              Int             @id @default(autoincrement())
-  name            String
-  email           String   @unique
-  password        String
-  scholarships    Scholarship[]
-  createdAt       DateTime @default(now())
+  id               Int             @id @default(autoincrement())
+  name             String
+  email            String          @unique
+  password         String
+  scholarships     Scholarship[]
+  createdAt        DateTime        @default(now())
+
+  // 🧩 Relation: messages received by this organization
+  receivedMessages ChatMessage[]   @relation("OrgReceivedMessages")
 }
 
 model Scholarship {
@@ -48,11 +51,11 @@ model Scholarship {
   organizationId  Int
   organization    Organization    @relation(fields: [organizationId], references: [id])
   applications    Application[]
-  createdAt       DateTime @default(now())
+  createdAt       DateTime        @default(now())
 
-  // --- ADD THESE TWO LINES ---
+  // --- Coding Test fields ---
   testMode        Boolean  @default(false)
-  testQuestionId  String?  // The ID of the question from your questions.json
+  testQuestionId  String?
 }
 
 model Application {
@@ -61,11 +64,10 @@ model Application {
   scholarshipId  Int
   user           User         @relation(fields: [userId], references: [id])
   scholarship    Scholarship  @relation(fields: [scholarshipId], references: [id])
-  status         String       @default("Pending") // "Pending", "Accepted", "Rejected"
+  status         String       @default("Pending")
   createdAt      DateTime     @default(now())
 
-  // --- ADD THIS LINE ---
-  testScore      Int?         // Stores the score (e.g., hidden cases passed)
+  testScore      Int?
 }
 
 model Profile {
@@ -78,6 +80,19 @@ model Profile {
   college   String?
   degree    String?
   createdAt DateTime @default(now())
+}
+
+
+model ChatMessage {
+  id          Int           @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int
+  message     String
+  createdAt   DateTime      @default(now())
+
+  // 🔗 Relations
+  sender      User          @relation("UserSentMessages", fields: [senderId], references: [id])
+  receiver    Organization  @relation("OrgReceivedMessages", fields: [receiverId], references: [id])
 }
 
 enum Role {

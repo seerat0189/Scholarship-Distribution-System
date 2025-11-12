@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { io } from "socket.io-client";
 import api from "../api/axios";
 
-// This is the API for your SEPARATE coding test server (Port 3000)
-const TEST_API_URL = 'http://localhost:3000';
+const TEST_API_URL = "http://localhost:3000";
+const socket = io("http://localhost:4001", {
+  transports: ["websocket"],
+  reconnection: true,
+});
 
 export default function CompanyDashboard() {
   const [form, setForm] = useState({
@@ -12,15 +16,57 @@ export default function CompanyDashboard() {
     amount: "",
     minimumCgpa: "",
     testMode: false,
-    testQuestionId: "", // This will be set by the dropdown
+    testQuestionId: "",
   });
 
   const [posted, setPosted] = useState([]);
-  
-  // --- NEW STATE for the question list ---
   const [questionList, setQuestionList] = useState([]);
   const [testServiceError, setTestServiceError] = useState(false);
 
+  
+  const [showChat, setShowChat] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const chatEndRef = useRef(null);
+
+  const myId = 2; // Organization ID (logged-in org)
+  const receiverId = 1; // User ID
+
+  // Auto-scroll to last message
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+
+  useEffect(() => {
+    socket.emit("register", { id: myId, role: "organization" });
+
+    socket.on("receive_message", (msg) => {
+      if (msg.receiverId === myId || msg.senderId === myId) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    return () => socket.off("receive_message");
+  }, []);
+
+  useEffect(scrollToBottom, [messages]);
+
+  
+  const sendMessage = () => {
+    if (!message.trim()) return;
+    const msgData = {
+      senderId: myId,
+      senderRole: "organization",
+      receiverId,
+      receiverRole: "user",
+      message,
+    };
+    socket.emit("send_message", msgData);
+    setMessage("");
+  };
+
+ 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm({
@@ -35,14 +81,13 @@ export default function CompanyDashboard() {
       const res = await api.post("/company/create", form);
       alert("Scholarship Posted!");
       setPosted([res.data, ...posted]);
-      // Clear form
       setForm({
         scholarshipName: "",
         eligibility: "",
         amount: "",
         minimumCgpa: "",
         testMode: false,
-        testQuestionId: questionList.length > 0 ? questionList[0].id : "", // Reset to default
+        testQuestionId: questionList.length > 0 ? questionList[0].id : "",
       });
     } catch (error) {
       alert(
@@ -52,30 +97,23 @@ export default function CompanyDashboard() {
     }
   };
 
-  // --- NEW useEffect: Fetches question list from your test service ---
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
         const response = await fetch(`${TEST_API_URL}/api/questions`);
-        if (!response.ok) {
-          throw new Error("Test service is not running or failed to respond.");
-        }
+        if (!response.ok) throw new Error("Test service not responding");
         const data = await response.json();
         setQuestionList(data);
-        if (data.length > 0) {
-          // Automatically set the first question as the default
-          setForm(f => ({ ...f, testQuestionId: data[0].id }));
-        }
+        if (data.length > 0)
+          setForm((f) => ({ ...f, testQuestionId: data[0].id }));
         setTestServiceError(false);
-      } catch (error) {
-        console.error("Failed to fetch questions:", error);
+      } catch {
         setTestServiceError(true);
       }
     };
     fetchQuestions();
-  }, []); // Runs once on component mount
+  }, []);
 
-  // This useEffect fetches your *posted* scholarships
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -89,7 +127,7 @@ export default function CompanyDashboard() {
   }, []);
 
   return (
-    <div className="p-6">
+    <div className="p-6 relative">
       <h2 className="text-xl font-bold mb-4">Post New Scholarship</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
@@ -140,15 +178,17 @@ export default function CompanyDashboard() {
           </label>
         </div>
 
-        {/* --- UPDATED SECTION: Replaced text input with select dropdown --- */}
         {form.testMode && (
           <div>
-            <label htmlFor="testQuestionId" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="testQuestionId"
+              className="block text-sm font-medium text-gray-700"
+            >
               Select Test Question
             </label>
             {testServiceError ? (
               <p className="text-red-600">
-                Could not load questions. Make sure your coding-test-service is running on Port 3000.
+                Could not load questions. Check coding-test-service.
               </p>
             ) : (
               <select
@@ -172,7 +212,6 @@ export default function CompanyDashboard() {
             )}
           </div>
         )}
-        {/* --- END OF UPDATED SECTION --- */}
 
         <button className="bg-green-600 text-white px-4 py-2 rounded">
           Post
@@ -194,6 +233,118 @@ export default function CompanyDashboard() {
           </Link>
         ))}
       </ul>
+
+      {}
+      <button
+        onClick={() => setShowChat(!showChat)}
+        style={{
+          position: "fixed",
+          bottom: "25px",
+          right: "25px",
+          backgroundColor: "#16a34a",
+          color: "white",
+          border: "none",
+          borderRadius: "50%",
+          width: "55px",
+          height: "55px",
+          fontSize: "24px",
+          cursor: "pointer",
+          boxShadow: "0 3px 8px rgba(0,0,0,0.2)",
+        }}
+        title="Chat with user"
+      >
+        💬
+      </button>
+
+      {}
+      {showChat && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "90px",
+            right: "25px",
+            width: "300px",
+            backgroundColor: "white",
+            border: "1px solid #ddd",
+            borderRadius: "10px",
+            boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#16a34a",
+              color: "white",
+              padding: "8px",
+              fontWeight: "bold",
+              textAlign: "center",
+            }}
+          >
+            Live Chat (Organization)
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              height: "200px",
+              overflowY: "auto",
+              padding: "8px",
+              background: "#f9fafb",
+            }}
+          >
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  background: m.senderId === myId ? "#1c2b25ff" : "#2f3b53ff",
+                  margin: "4px 0",
+                  padding: "6px 8px",
+                  borderRadius: "8px",
+                  textAlign: m.senderId === myId ? "right" : "left",
+                }}
+              >
+                {m.message}
+              </div>
+            ))}
+            <div ref={chatEndRef}></div>
+          </div>
+
+          <div
+            style={{
+              borderTop: "1px solid #ddd",
+              padding: "6px",
+              display: "flex",
+            }}
+          >
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type..."
+              style={{
+                flex: 1,
+                border: "1px solid #ccc",
+                borderRadius: "5px",
+                padding: "6px",
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              style={{
+                background: "#16a34a",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                marginLeft: "5px",
+                padding: "6px 10px",
+              }}
+            >
+              ➤
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
