@@ -23,7 +23,7 @@ export default function Login() {
       const role = res.data.role;
       
       // Navigate based on role
-      if (role === "ADMIN") navigate("/admin");
+      if (role === "ADMIN") navigate("/admin/dashboard");
       else if (role === "ORGANIZATION") navigate("/company");
       else navigate("/user");
 

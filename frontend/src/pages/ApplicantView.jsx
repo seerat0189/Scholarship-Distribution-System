@@ -10,7 +10,7 @@ export default function ApplicantView() {
 
   const fetchApplicants = async () => {
     try {
-      const res = await api.get(`/company/applicants/${scholarshipId}`);
+      const res = await api.get(`/companies/applicants/${scholarshipId}`);
       setApplicants(res.data);
       // A bit of a hack to get scholarship name; ideally, a separate endpoint
       if (res.data.length > 0) {
@@ -32,7 +32,7 @@ export default function ApplicantView() {
       return;
     }
     try {
-      await api.patch(`/company/application/${applicationId}`, { status });
+      await api.patch(`/companies/application/${applicationId}`, { status });
       // Update local state for immediate feedback
       setApplicants(applicants.map(app => 
         app.id === applicationId ? { ...app, status: status } : app

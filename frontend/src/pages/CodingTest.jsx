@@ -116,7 +116,7 @@ export default function CodingTest() {
 
     try {
       // This is the call to your main backend (Port 5000)
-      await api.post("/user/apply", {
+      await api.post("/users/apply", {
         scholarshipId: parseInt(scholarshipId),
         testScore: bestScore, // Submit the user's best score
       });

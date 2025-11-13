@@ -78,7 +78,7 @@ export default function CompanyDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post("/company/create", form);
+      const res = await api.post("/companies/create", form);
       alert("Scholarship Posted!");
       setPosted([res.data, ...posted]);
       setForm({
@@ -117,7 +117,7 @@ export default function CompanyDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get("/company/my-scholarships");
+        const res = await api.get("/companies/my-scholarships");
         setPosted(res.data);
       } catch (error) {
         console.error("Failed to fetch scholarships", error);

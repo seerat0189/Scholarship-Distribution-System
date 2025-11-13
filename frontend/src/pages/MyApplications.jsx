@@ -21,7 +21,7 @@ export default function MyApplications() {
   useEffect(() => {
     const fetchApplications = async () => {
       try {
-        const res = await api.get("/user/my-applications");
+        const res = await api.get("/users/my-applications");
         setApplications(res.data);
         setLoading(false);
       } catch (error) {

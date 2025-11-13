@@ -52,7 +52,7 @@ model Scholarship {
   organization    Organization    @relation(fields: [organizationId], references: [id])
   applications    Application[]
   createdAt       DateTime        @default(now())
-
+  status          String          @default("ACTIVE")
   // --- Coding Test fields ---
   testMode        Boolean  @default(false)
   testQuestionId  String?

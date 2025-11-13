@@ -43,7 +43,7 @@ export default function UserDashboard() {
   
   useEffect(() => {
     const fetchData = async () => {
-      const res = await api.get("/user/scholarships");
+      const res = await api.get("/users/scholarships");
       setScholarships(res.data);
     };
     fetchData();
@@ -60,7 +60,7 @@ export default function UserDashboard() {
       navigate(`/test/${scholarship.id}/${scholarship.testQuestionId}`);
     } else {
       try {
-        await api.post("/user/apply", { scholarshipId: scholarship.id });
+        await api.post("/users/apply", { scholarshipId: scholarship.id });
         alert("Applied successfully!");
       } catch (error) {
         alert("Error: " + (error.response?.data?.message || "Failed to apply"));
