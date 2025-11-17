@@ -26,8 +26,9 @@ model User {
   applications   Application[]
   createdAt      DateTime        @default(now())
 
-  // 🧩 Relation: messages sent by this user
   sentMessages   ChatMessage[]   @relation("UserSentMessages")
+
+  @@index([name])
 }
 
 model Organization {
@@ -38,7 +39,6 @@ model Organization {
   scholarships     Scholarship[]
   createdAt        DateTime        @default(now())
 
-  // 🧩 Relation: messages received by this organization
   receivedMessages ChatMessage[]   @relation("OrgReceivedMessages")
 }
 
@@ -53,9 +53,11 @@ model Scholarship {
   applications    Application[]
   createdAt       DateTime        @default(now())
   status          String          @default("ACTIVE")
-  // --- Coding Test fields ---
-  testMode        Boolean  @default(false)
+
+  testMode        Boolean         @default(false)
   testQuestionId  String?
+
+  @@index([scholarshipName])
 }
 
 model Application {
@@ -82,7 +84,6 @@ model Profile {
   createdAt DateTime @default(now())
 }
 
-
 model ChatMessage {
   id          Int           @id @default(autoincrement())
   senderId    Int
@@ -90,7 +91,6 @@ model ChatMessage {
   message     String
   createdAt   DateTime      @default(now())
 
-  // 🔗 Relations
   sender      User          @relation("UserSentMessages", fields: [senderId], references: [id])
   receiver    Organization  @relation("OrgReceivedMessages", fields: [receiverId], references: [id])
 }

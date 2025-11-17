@@ -14,6 +14,7 @@ import CodingTest from "./pages/CodingTest";
 import MyApplications from "./pages/MyApplications";
 import AdminUsers from "./admin/pages/AdminUsers";
 import AdminNotifications from "./admin/pages/AdminNotifications";
+import AdminSearch from "./admin/pages/AdminSearch";
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} roles={["ADMIN"]} />
           <Route path="/admin/users" element={<AdminUsers />} roles={["ADMIN"]} />
           <Route path="/admin/notifications" element={<AdminNotifications />} roles={["ADMIN"]} />
+          <Route path="/admin/search" element={<AdminSearch />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

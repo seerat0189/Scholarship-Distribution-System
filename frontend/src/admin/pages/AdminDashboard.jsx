@@ -108,6 +108,24 @@ export default function AdminDashboard() {
           </div>
         </section>
 
+        {/* Admin Actions */}
+<section className="admin-actions">
+  <h2>Admin Actions</h2>
+  <button
+    onClick={async () => {
+      const token = localStorage.getItem("token");
+      console.log("Flushing cache...");
+      const res = await import("../services/adminService")
+        .then(m => m.flushCache(token));
+      console.log("Cache flushed:", res.data);
+      alert("Cache flushed successfully!");
+    }}
+  >
+    Flush Cache
+  </button>
+</section>
+
+
         {/* Live Notifications */}
         <section className="live-updates">
           <h2>Live Notifications</h2>

@@ -1,33 +1,42 @@
 import { useEffect, useState } from "react";
-import { getAllUsers, reindexUser } from "../services/adminService";
+import { getAllUsers, getAllOrganizations } from "../services/adminService";
 import AdminSidebar from "../components/AdminSidebar";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
-  const [cached, setCached] = useState(false);
+  const [orgs, setOrgs] = useState([]);
+  const [userCached, setUserCached] = useState(false);
+  const [orgCached, setOrgCached] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
+    // Load users
     getAllUsers(token).then(({ data, fromCache }) => {
       setUsers(data);
-      setCached(fromCache);
+      setUserCached(fromCache);
+    });
+
+    // Load organizations
+    getAllOrganizations(token).then(({ data, fromCache }) => {
+      setOrgs(data);
+      setOrgCached(fromCache);
     });
   }, []);
-
-  const handleReindex = async (id) => {
-    const token = localStorage.getItem("token");
-    await reindexUser(token, id);
-    alert("Reindex queued!");
-  };
 
   return (
     <div className="admin-users">
       <AdminSidebar />
       <main>
-        <h1>All Users {cached && <span className="cached-tag">(Cached)</span>}</h1>
+        <h1>
+          All Users{" "}
+          {userCached && <span className="cached-tag">(Cached)</span>}
+        </h1>
+
+        {/* Users Table */}
         <table>
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Email</th><th>Action</th></tr>
+            <tr><th>ID</th><th>Name</th><th>Email</th></tr>
           </thead>
           <tbody>
             {users.map(u => (
@@ -35,7 +44,29 @@ export default function AdminUsers() {
                 <td>{u.id}</td>
                 <td>{u.name}</td>
                 <td>{u.email}</td>
-                <td><button onClick={() => handleReindex(u.id)}>Reindex</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <hr />
+
+        <h1>
+          All Organizations{" "}
+          {orgCached && <span className="cached-tag">(Cached)</span>}
+        </h1>
+
+        {/* Organizations Table */}
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+          </thead>
+          <tbody>
+            {orgs.map(o => (
+              <tr key={o.id}>
+                <td>{o.id}</td>
+                <td>{o.name}</td>
+                <td>{o.email}</td>
               </tr>
             ))}
           </tbody>

@@ -15,40 +15,48 @@ function attachSocket(httpServer) {
   const io = new Server(httpServer, {
     path: "/socket.io",
     cors: {
-      origin: "*", // restrict in prod
+      origin: "*", // restrict in production
       methods: ["GET", "POST"],
     },
   });
 
-  // If you want Socket.IO Redis adapter (multi-node), uncomment below and install adapter
-  // const { createAdapter } = require("@socket.io/redis-adapter");
-  // const pubClient = getClient();
-  // const subClient = pubClient.duplicate();
-  // io.adapter(createAdapter(pubClient, subClient));
-
   io.on("connection", (socket) => {
-    console.log("Admin socket connected:", socket.id);
+    console.log("[SOCKET] Admin socket connected:", socket.id);
 
-    // authenticate admin socket connections (example)
+    /**
+     * Admin identifies themself
+     * The admin dashboard calls socket.emit("identify")
+     */
     socket.on("identify", (payload) => {
-      // payload should contain token/role; validate token and roles as appropriate
-      // For demo, allow it
+      // Normally validate token; for demo we allow it
       socket.join("admins");
+      console.log("[SOCKET] Admin joined admin room:", socket.id);
     });
 
-    // Example event: broadcast notification to admins
+    /**
+     * Admin triggered notification (optional feature)
+     */
     socket.on("admin:notify", (data) => {
-      // publish via redis pubsub so other nodes can pick it up too
-      publish("admin:notifications", data);
+      console.log("[PUBSUB] Admin requested notify:", data);
+
+      // publish to Redis so that all server instances receive this notification
+      publish("admin:notifications", {
+        type: "manual_notification",
+        data,
+        timestamp: new Date(),
+      });
     });
 
     socket.on("disconnect", () => {
-      console.log("Socket disconnected:", socket.id);
+      console.log("[SOCKET] Admin disconnected:", socket.id);
     });
   });
 
-  // Subscribe to redis broadcasts and forward to sockets
+  // 🔥 STEP 7: Subscribe to Redis pub/sub events and broadcast them to connected admin sockets
   subscribe("admin:notifications", (msg) => {
+    console.log("[PUBSUB] Received broadcast:", msg);
+
+    // Send to all admin sockets
     io.to("admins").emit("admin:notification", msg);
   });
 

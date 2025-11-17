@@ -7,6 +7,7 @@ export default function AdminSidebar() {
       <nav>
         <NavLink to="/admin/dashboard">Dashboard</NavLink>
         <NavLink to="/admin/users">Users</NavLink>
+        <NavLink to="/admin/search">Search</NavLink>   {/* <-- Added */}
         <NavLink to="/admin/notifications">Notifications</NavLink>
       </nav>
     </aside>
