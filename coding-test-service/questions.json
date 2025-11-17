@@ -9,10 +9,18 @@
     },
     "testCases": {
       "sample": [
-        { "input": "[2, 7, 11, 15]\n9", "expectedOutput": "[0, 1]", "isSample": true }
+        {
+          "input": "[2, 7, 11, 15]\n9",
+          "expectedOutput": "[0, 1]",
+          "isSample": true
+        }
       ],
       "hidden": [
-        { "input": "[3, 2, 4]\n6", "expectedOutput": "[1, 2]", "isSample": false }
+        {
+          "input": "[3, 2, 4]\n6",
+          "expectedOutput": "[1, 2]",
+          "isSample": false
+        }
       ]
     }
   },
@@ -50,6 +58,61 @@
         },
         {
           "input": "0\n0",
+          "expectedOutput": "0",
+          "isSample": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "sub-number",
+    "title": "subtract_2_numbers",
+    "description": "take input of 2 numbers and output first no to second no",
+    "boilerplate": {
+      "python": "#take input of 2 number",
+      "java": "public class Main\n{\npublic static void main(String[] args) {\n\t//make scanner object and take input of 2 no\n\t}\n}\n"
+    },
+    "testCases": {
+      "sample": [
+        {
+          "input": "2\n2",
+          "expectedOutput": "0",
+          "isSample": true
+        }
+      ],
+      "hidden": [
+        {
+          "input": "2\n3",
+          "expectedOutput": "-1",
+          "isSample": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "multi",
+    "title": "multiply",
+    "description": "take input of 2 and multi",
+    "boilerplate": {
+      "python": "#take input",
+      "java": "//make main class and then take input"
+    },
+    "testCases": {
+      "sample": [
+        {
+          "input": "2\n3",
+          "expectedOutput": "6",
+          "isSample": true
+        }
+      ],
+      "hidden": [
+        {
+          "input": "2\n6",
+          "expectedOutput": "12",
+          "isSample": false
+        },
+        {
+          "input": "2\n0",
           "expectedOutput": "0",
           "isSample": false
         }

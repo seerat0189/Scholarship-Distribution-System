@@ -47,15 +47,37 @@ module.exports.viewApplicants = async (req, res) => {
   const organizationId = req.user.id; // The logged-in organization
 
   try {
-    // SECURITY CHECK: Ensure the scholarship belongs to this organization
-const applicants = await prisma.application.findMany({
+    // SECURITY CHECK: First, verify the scholarship belongs to this org
+    const scholarship = await prisma.scholarship.findFirst({
+      where: {
+        id: parseInt(scholarshipId),
+        organizationId: organizationId,
+      }
+    });
+
+    // If scholarship not found or doesn't belong to org, deny access
+    if (!scholarship) {
+      return res.status(403).json({ message: "Access denied or scholarship not found." });
+    }
+    
+    // --- MODIFICATION START ---
+    // Scholarship is valid, now find applicants and include scholarship details
+    const applicants = await prisma.application.findMany({
       where: { scholarshipId: parseInt(scholarshipId) },
       include: { 
         user: {
           select: { name: true, email: true, cgpa: true, college: true, degree: true } // Select only safe user fields
-        } 
+        },
+        scholarship: { // Include scholarship info
+          select: {
+            testMode: true,
+            testQuestionId: true
+          }
+        }
       },
     });
+    // --- MODIFICATION END ---
+    
     res.json(applicants);
   } catch (error) {
      res.status(500).json({ error: error.message });

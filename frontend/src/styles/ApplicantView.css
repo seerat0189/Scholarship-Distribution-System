@@ -10,9 +10,20 @@
 .av-title {
   font-size: 28px;
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: 4px; /* Reduced margin */
   color: #1f2937;
 }
+
+/* --- NEW STYLE --- */
+.av-scholarship-name {
+  font-size: 18px;
+  font-weight: 500;
+  color: #4b5563;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+/* --- END NEW STYLE --- */
+
 
 /* TABLE CONTAINER */
 .av-table-container {
@@ -42,6 +53,13 @@
   font-size: 15px;
   border-bottom: 1px solid #e5e7eb;
 }
+
+/* --- NEW: Center score text --- */
+.av-table td:nth-child(4) {
+  text-align: center;
+  font-weight: 600;
+}
+
 
 .av-table tr:last-child td {
   border-bottom: none;
