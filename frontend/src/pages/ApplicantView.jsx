@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios";
+import "../styles/ApplicantView.css";
 
 export default function ApplicantView() {
   const { scholarshipId } = useParams();
@@ -12,10 +13,11 @@ export default function ApplicantView() {
     try {
       const res = await api.get(`/companies/applicants/${scholarshipId}`);
       setApplicants(res.data);
-      // A bit of a hack to get scholarship name; ideally, a separate endpoint
+
       if (res.data.length > 0) {
-        setScholarship(res.data[0].scholarship); 
+        setScholarship(res.data[0].scholarship);
       }
+
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch applicants", error);
@@ -28,67 +30,78 @@ export default function ApplicantView() {
   }, [scholarshipId]);
 
   const handleUpdateStatus = async (applicationId, status) => {
-    if (!window.confirm(`Are you sure you want to ${status} this applicant?`)) {
-      return;
-    }
+    if (!window.confirm(`Are you sure you want to ${status} this applicant?`)) return;
+
     try {
       await api.patch(`/companies/application/${applicationId}`, { status });
-      // Update local state for immediate feedback
-      setApplicants(applicants.map(app => 
-        app.id === applicationId ? { ...app, status: status } : app
-      ));
+
+      setApplicants(
+        applicants.map((app) =>
+          app.id === applicationId ? { ...app, status: status } : app
+        )
+      );
+
       alert(`Applicant ${status}!`);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || "Failed to update status"));
     }
   };
 
-  if (loading) return <div className="p-6">Loading applicants...</div>;
+  if (loading) return <div className="av-root">Loading applicants...</div>;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Applicants</h2>
+    <div className="av-root" style={{ background: "red" }}>
+      <h2 className="av-title">Applicants</h2>
+
       {applicants.length === 0 ? (
         <p>No applicants for this scholarship yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded shadow">
-            <thead className="bg-gray-800 text-white">
+        <div className="av-table-container">
+          <table className="av-table">
+            <thead>
               <tr>
-                <th className="p-3 text-left">Applicant</th>
-                <th className="p-3 text-left">Email</th>
-                <th className="p-3 text-left">Status</th>
-                <th className="p-3 text-left">Test Score</th>
-                <th className="p-3 text-left">Actions</th>
+                <th>Applicant</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Test Score</th>
+                <th>Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {applicants.map((app) => (
-                <tr key={app.id} className="border-b">
-                  <td className="p-3">{app.user.name}</td>
-                  <td className="p-3">{app.user.email}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      app.status === "Accepted" ? "bg-green-200 text-green-800" :
-                      app.status === "Rejected" ? "bg-red-200 text-red-800" :
-                      "bg-yellow-200 text-yellow-800"
-                    }`}>
+                <tr key={app.id}>
+                  <td>{app.user.name}</td>
+                  <td>{app.user.email}</td>
+
+                  <td>
+                    <span
+                      className={`av-status ${
+                        app.status === "Accepted"
+                          ? "av-status-accepted"
+                          : app.status === "Rejected"
+                          ? "av-status-rejected"
+                          : "av-status-pending"
+                      }`}
+                    >
                       {app.status}
                     </span>
                   </td>
-                  <td className="p-3">{app.testScore !== null ? app.testScore : "N/A"}</td>
-                  <td className="p-3">
+
+                  <td>{app.testScore !== null ? app.testScore : "N/A"}</td>
+
+                  <td>
                     {app.status === "Pending" && (
-                      <div className="flex gap-2">
-                        <button 
+                      <div className="av-actions">
+                        <button
                           onClick={() => handleUpdateStatus(app.id, "Accepted")}
-                          className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                          className="av-btn av-btn-accept"
                         >
                           Accept
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleUpdateStatus(app.id, "Rejected")}
-                          className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+                          className="av-btn av-btn-reject"
                         >
                           Reject
                         </button>

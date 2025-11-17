@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import "../styles/Register.css"; // <-- ADD THIS IMPORT
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -42,50 +43,51 @@ export default function Register() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-50">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-96 space-y-4"
-      >
-        <h2 className="text-xl font-bold text-center">Register</h2>
+    <div className="register-root">
+      <form onSubmit={handleSubmit} className="register-card">
+
+        <h2 className="register-title">Register</h2>
 
         <input
           name="name"
           placeholder="Full Name"
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="register-input"
           required
         />
+
         <input
           name="email"
           type="email"
           placeholder="Email"
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="register-input"
           required
         />
+
         <input
           name="password"
           type="password"
           placeholder="Password"
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="register-input"
           required
         />
 
-        <select name="role" value={form.role} onChange={handleChange} className="w-full p-2 border rounded">
+        <select
+          name="role"
+          value={form.role}
+          onChange={handleChange}
+          className="register-select"
+        >
           <option value="USER">User</option>
           <option value="ORGANIZATION">Organization</option>
           <option value="ADMIN">Admin</option>
         </select>
 
-        <button className="bg-green-600 text-white w-full py-2 rounded">
-          Register
-        </button>
+        <button className="register-btn">Register</button>
 
-        {msg && (
-          <p className="text-indigo-600 text-sm text-center">{msg}</p>
-        )}
+        {msg && <p className="register-msg">{msg}</p>}
       </form>
     </div>
   );

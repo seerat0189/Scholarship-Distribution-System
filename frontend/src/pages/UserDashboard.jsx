@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import api from "../api/axios";
+import "../styles/UserDashboard.css";
 
 const socket = io("http://localhost:4001", {
   transports: ["websocket"],
@@ -17,15 +18,13 @@ export default function UserDashboard() {
   const [messages, setMessages] = useState([]);
   const chatEndRef = useRef(null);
 
-  const myId = 1; // logged-in user ID
-  const receiverId = 2; // target organization ID
+  const myId = 1; 
+  const receiverId = 2;
 
-  // Scroll to latest message
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Register user in WebSocket
   useEffect(() => {
     socket.emit("register", { id: myId, role: "user" });
 
@@ -40,7 +39,6 @@ export default function UserDashboard() {
 
   useEffect(scrollToBottom, [messages]);
 
-  
   useEffect(() => {
     const fetchData = async () => {
       const res = await api.get("/users/scholarships");
@@ -52,9 +50,7 @@ export default function UserDashboard() {
   const apply = async (scholarship) => {
     if (scholarship.testMode) {
       if (!scholarship.testQuestionId) {
-        alert(
-          "Error: This scholarship is in test mode but has no question ID."
-        );
+        alert("Error: This scholarship is in test mode but has no question ID.");
         return;
       }
       navigate(`/test/${scholarship.id}/${scholarship.testQuestionId}`);
@@ -68,7 +64,6 @@ export default function UserDashboard() {
     }
   };
 
-  
   const sendMessage = () => {
     if (!message.trim()) return;
     const msgData = {
@@ -83,23 +78,25 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="p-6 relative">
-      <h2 className="text-2xl font-bold mb-4">Available Scholarships</h2>
+    <div className="ud-root">
+      <h2 className="ud-title">Available Scholarships</h2>
 
-      <div className="grid gap-4">
+      <div className="ud-grid">
         {scholarships.map((s) => (
-          <div key={s.id} className="border p-4 rounded shadow">
-            <h3 className="font-semibold">{s.scholarshipName}</h3>
+          <div key={s.id} className="ud-card">
+            <h3 className="ud-card-title">{s.scholarshipName}</h3>
             <p>{s.eligibility}</p>
-            <p>Amount: ₹{s.amount}</p>
+            <p className="ud-amount">Amount: ₹{s.amount}</p>
+
             {s.testMode && (
-              <p className="text-indigo-600 font-medium">
+              <p className="ud-test-note">
                 Note: This scholarship requires a coding test.
               </p>
             )}
+
             <button
               onClick={() => apply(s)}
-              className="bg-indigo-600 text-white px-3 py-1 rounded mt-2"
+              className="ud-apply-btn"
             >
               {s.testMode ? "Start Test & Apply" : "Apply Now"}
             </button>
@@ -107,75 +104,27 @@ export default function UserDashboard() {
         ))}
       </div>
 
-      {}
+      {/* Floating Chat Button */}
       <button
         onClick={() => setShowChat(!showChat)}
-        style={{
-          position: "fixed",
-          bottom: "25px",
-          right: "25px",
-          backgroundColor: "#4f46e5",
-          color: "white",
-          border: "none",
-          borderRadius: "50%",
-          width: "55px",
-          height: "55px",
-          fontSize: "24px",
-          cursor: "pointer",
-          boxShadow: "0 3px 8px rgba(0,0,0,0.2)",
-        }}
+        className="ud-chat-btn"
         title="Chat with organization"
       >
         💬
       </button>
 
-      {}
+      {/* Chat Box */}
       {showChat && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "90px",
-            right: "25px",
-            width: "300px",
-            backgroundColor: "white",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-            boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#4f46e5",
-              color: "white",
-              padding: "8px",
-              fontWeight: "bold",
-              textAlign: "center",
-            }}
-          >
-            Live Chat (User)
-          </div>
+        <div className="ud-chat-box">
+          <div className="ud-chat-header">Live Chat (User)</div>
 
-          <div
-            style={{
-              flex: 1,
-              height: "200px",
-              overflowY: "auto",
-              padding: "8px",
-              background: "#f9fafb",
-            }}
-          >
+          <div className="ud-chat-messages">
             {messages.map((m, i) => (
               <div
                 key={i}
-                style={{
-                  background: m.senderId === myId ? "#1c2b25ff" : "#2f3b53ff",
-                  margin: "4px 0",
-                  padding: "6px 8px",
-                  borderRadius: "8px",
-                  textAlign: m.senderId === myId ? "right" : "left",
-                }}
+                className={`ud-chat-msg ${
+                  m.senderId === myId ? "ud-chat-right" : "ud-chat-left"
+                }`}
               >
                 {m.message}
               </div>
@@ -183,36 +132,15 @@ export default function UserDashboard() {
             <div ref={chatEndRef}></div>
           </div>
 
-          <div
-            style={{
-              borderTop: "1px solid #ddd",
-              padding: "6px",
-              display: "flex",
-            }}
-          >
+          <div className="ud-chat-input-area">
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              className="ud-chat-input"
               placeholder="Type..."
-              style={{
-                flex: 1,
-                border: "1px solid #0f0b0bff",
-                borderRadius: "5px",
-                padding: "6px",
-              }}
             />
-            <button
-              onClick={sendMessage}
-              style={{
-                background: "#4f46e5",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                marginLeft: "5px",
-                padding: "6px 10px",
-              }}
-            >
+            <button onClick={sendMessage} className="ud-chat-send">
               ➤
             </button>
           </div>

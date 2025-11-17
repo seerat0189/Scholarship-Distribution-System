@@ -1,13 +1,14 @@
 import React, { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import "../styles/Navbar.css";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   return (
-    <nav className="bg-gray-800 p-4 text-white flex justify-between items-center">
-      <span className="font-bold text-xl">🎓 Scholarship Portal</span>
-      <div className="flex items-center gap-4"> {/* Increased gap */}
+    <nav className="navbar-root">
+      <span className="navbar-logo">🎓 Scholarship Portal</span>
+        <div className="navbar-right">
         {!user ? (
           <>
             <Link to="/login" className="hover:text-indigo-400">Login</Link>
@@ -36,7 +37,7 @@ export default function Navbar() {
             )}
             {/* --- END OF MODIFICATION --- */}
 
-            <button onClick={logout} className="bg-red-600 px-3 py-1 rounded hover:bg-red-700">
+            <button onClick={logout} className="navbar-logout">
               Logout
             </button>
           </>

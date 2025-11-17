@@ -1,0 +1,112 @@
+/* PAGE ROOT */
+.av-root {
+  padding: 24px;
+  background: #f9fafb;
+  min-height: 100vh;
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* PAGE TITLE */
+.av-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+/* TABLE CONTAINER */
+.av-table-container {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+/* TABLE STYLES */
+.av-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.av-table thead {
+  background: #1f2937;
+  color: white;
+}
+
+.av-table th,
+.av-table td {
+  padding: 14px;
+  text-align: left;
+  font-size: 15px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.av-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* STATUS TAGS */
+.av-status {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.av-status-accepted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.av-status-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.av-status-pending {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+/* ACTION BUTTONS */
+.av-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.av-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: white;
+  font-weight: 600;
+}
+
+.av-btn-accept {
+  background: #059669;
+}
+
+.av-btn-accept:hover {
+  background: #047857;
+}
+
+.av-btn-reject {
+  background: #dc2626;
+}
+
+.av-btn-reject:hover {
+  background: #b91c1c;
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+  .av-table th,
+  .av-table td {
+    padding: 10px;
+    font-size: 13px;
+  }
+}

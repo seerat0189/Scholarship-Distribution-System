@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import api from "../api/axios";
+import "../styles/CompanyDashboard.css";
 
 const TEST_API_URL = "http://localhost:3000";
 const socket = io("http://localhost:4001", {
@@ -23,20 +24,17 @@ export default function CompanyDashboard() {
   const [questionList, setQuestionList] = useState([]);
   const [testServiceError, setTestServiceError] = useState(false);
 
-  
   const [showChat, setShowChat] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const chatEndRef = useRef(null);
 
-  const myId = 2; // Organization ID (logged-in org)
-  const receiverId = 1; // User ID
+  const myId = 2;
+  const receiverId = 1;
 
-  // Auto-scroll to last message
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
 
   useEffect(() => {
     socket.emit("register", { id: myId, role: "organization" });
@@ -52,7 +50,6 @@ export default function CompanyDashboard() {
 
   useEffect(scrollToBottom, [messages]);
 
-  
   const sendMessage = () => {
     if (!message.trim()) return;
     const msgData = {
@@ -66,7 +63,6 @@ export default function CompanyDashboard() {
     setMessage("");
   };
 
- 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm({
@@ -90,10 +86,7 @@ export default function CompanyDashboard() {
         testQuestionId: questionList.length > 0 ? questionList[0].id : "",
       });
     } catch (error) {
-      alert(
-        "Error posting scholarship: " +
-          (error.response?.data?.message || "Server Error")
-      );
+      alert("Error posting scholarship");
     }
   };
 
@@ -104,8 +97,10 @@ export default function CompanyDashboard() {
         if (!response.ok) throw new Error("Test service not responding");
         const data = await response.json();
         setQuestionList(data);
+
         if (data.length > 0)
           setForm((f) => ({ ...f, testQuestionId: data[0].id }));
+
         setTestServiceError(false);
       } catch {
         setTestServiceError(true);
@@ -115,92 +110,88 @@ export default function CompanyDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPosted = async () => {
       try {
         const res = await api.get("/companies/my-scholarships");
         setPosted(res.data);
-      } catch (error) {
-        console.error("Failed to fetch scholarships", error);
+      } catch {
+        console.error("Failed to load scholarships");
       }
     };
-    fetchData();
+    fetchPosted();
   }, []);
 
   return (
-    <div className="p-6 relative">
-      <h2 className="text-xl font-bold mb-4">Post New Scholarship</h2>
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="cd-root">
+
+      <h2 className="cd-title">Post New Scholarship</h2>
+
+      <form onSubmit={handleSubmit} className="cd-form">
+
         <input
           name="scholarshipName"
           placeholder="Scholarship Name"
           value={form.scholarshipName}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="cd-input"
           required
         />
+
         <textarea
           name="eligibility"
-          placeholder="Eligibility (e.g., 'Engineering students')"
+          placeholder="Eligibility (e.g., Engineering students)"
           value={form.eligibility}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="cd-input cd-textarea"
         />
+
         <input
           name="amount"
           type="number"
           placeholder="Amount (e.g., 50000)"
           value={form.amount}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="cd-input"
           required
         />
+
         <input
           name="minimumCgpa"
           type="number"
           step="0.1"
-          placeholder="Minimum CGPA (Optional)"
+          placeholder="Minimum CGPA (optional)"
           value={form.minimumCgpa}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="cd-input"
         />
 
-        <div className="flex items-center gap-2">
+        <div className="cd-checkbox-row">
           <input
             type="checkbox"
             id="testMode"
             name="testMode"
             checked={form.testMode}
             onChange={handleChange}
-            className="h-4 w-4"
+            className="cd-checkbox"
           />
-          <label htmlFor="testMode" className="font-medium">
-            Enable Coding Test Mode
-          </label>
+          <label htmlFor="testMode" className="cd-label">Enable Coding Test Mode</label>
         </div>
 
         {form.testMode && (
           <div>
-            <label
-              htmlFor="testQuestionId"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Select Test Question
-            </label>
+            <label className="cd-label">Select Test Question</label>
+
             {testServiceError ? (
-              <p className="text-red-600">
-                Could not load questions. Check coding-test-service.
-              </p>
+              <p className="cd-error">⚠ Could not load questions</p>
             ) : (
               <select
                 name="testQuestionId"
-                id="testQuestionId"
                 value={form.testQuestionId}
                 onChange={handleChange}
-                className="w-full p-2 border rounded"
-                required
+                className="cd-input"
               >
                 {questionList.length === 0 ? (
-                  <option value="">Loading questions...</option>
+                  <option>Loading questions...</option>
                 ) : (
                   questionList.map((q) => (
                     <option key={q.id} value={q.id}>
@@ -213,135 +204,48 @@ export default function CompanyDashboard() {
           </div>
         )}
 
-        <button className="bg-green-600 text-white px-4 py-2 rounded">
-          Post
-        </button>
+        <button className="cd-btn-post">Post</button>
       </form>
 
-      <h3 className="text-xl font-semibold mt-6">Your Posted Scholarships</h3>
-      <ul className="mt-3 space-y-2">
+      <h3 className="cd-subtitle">Your Posted Scholarships</h3>
+
+      <ul className="cd-sch-list">
         {posted.map((s) => (
           <Link to={`/company/applicants/${s.id}`} key={s.id}>
-            <li className="border p-3 rounded hover:bg-gray-100 cursor-pointer">
+            <li className="cd-sch-item">
               {s.scholarshipName} — ₹{s.amount}
-              {s.testMode && (
-                <span className="ml-2 bg-indigo-200 text-indigo-800 text-xs font-medium px-2 py-0.5 rounded">
-                  Test Mode
-                </span>
-              )}
+              {s.testMode && <span className="cd-badge">Test Mode</span>}
             </li>
           </Link>
         ))}
       </ul>
 
-      {}
-      <button
-        onClick={() => setShowChat(!showChat)}
-        style={{
-          position: "fixed",
-          bottom: "25px",
-          right: "25px",
-          backgroundColor: "#16a34a",
-          color: "white",
-          border: "none",
-          borderRadius: "50%",
-          width: "55px",
-          height: "55px",
-          fontSize: "24px",
-          cursor: "pointer",
-          boxShadow: "0 3px 8px rgba(0,0,0,0.2)",
-        }}
-        title="Chat with user"
-      >
-        💬
-      </button>
+      {/* Chat Button */}
+      <button onClick={() => setShowChat(!showChat)} className="cd-chat-btn">💬</button>
 
-      {}
+      {/* Chat Box */}
       {showChat && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "90px",
-            right: "25px",
-            width: "300px",
-            backgroundColor: "white",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-            boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#16a34a",
-              color: "white",
-              padding: "8px",
-              fontWeight: "bold",
-              textAlign: "center",
-            }}
-          >
-            Live Chat (Organization)
-          </div>
+        <div className="cd-chat-box">
+          <div className="cd-chat-header">Live Chat (Organization)</div>
 
-          <div
-            style={{
-              flex: 1,
-              height: "200px",
-              overflowY: "auto",
-              padding: "8px",
-              background: "#f9fafb",
-            }}
-          >
+          <div className="cd-chat-messages">
             {messages.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  background: m.senderId === myId ? "#1c2b25ff" : "#2f3b53ff",
-                  margin: "4px 0",
-                  padding: "6px 8px",
-                  borderRadius: "8px",
-                  textAlign: m.senderId === myId ? "right" : "left",
-                }}
-              >
+              <div key={i} className={`cd-chat-msg ${m.senderId === myId ? "cd-right" : "cd-left"}`}>
                 {m.message}
               </div>
             ))}
             <div ref={chatEndRef}></div>
           </div>
 
-          <div
-            style={{
-              borderTop: "1px solid #ddd",
-              padding: "6px",
-              display: "flex",
-            }}
-          >
+          <div className="cd-chat-input-area">
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type..."
-              style={{
-                flex: 1,
-                border: "1px solid #ccc",
-                borderRadius: "5px",
-                padding: "6px",
-              }}
+              className="cd-chat-input"
             />
-            <button
-              onClick={sendMessage}
-              style={{
-                background: "#16a34a",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                marginLeft: "5px",
-                padding: "6px 10px",
-              }}
-            >
-              ➤
-            </button>
+            <button onClick={sendMessage} className="cd-chat-send">➤</button>
           </div>
         </div>
       )}
