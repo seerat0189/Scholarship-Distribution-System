@@ -1,0 +1,110 @@
+// This is your Prisma schema file
+// Learn more at https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum to represent scholarship lifecycle states
+enum ScholarshipStatus {
+  UPCOMING
+  ACTIVE
+  CLOSED
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  password       String
+  role           Role            @default(USER)
+  age            Int?
+  gender         String?
+  cgpa           Float?
+  college        String?
+  degree         String?
+  profiles       Profile[]
+  applications   Application[]
+  createdAt      DateTime        @default(now())
+
+  // 🧩 Relation: messages sent by this user
+  sentMessages   ChatMessage[]   @relation("UserSentMessages")
+}
+
+model Organization {
+  id               Int             @id @default(autoincrement())
+  name             String
+  email            String          @unique
+  password         String
+  scholarships     Scholarship[]
+  createdAt        DateTime        @default(now())
+
+  // 🧩 Relation: messages received by this organization
+  receivedMessages ChatMessage[]   @relation("OrgReceivedMessages")
+}
+
+model Scholarship {
+  id              Int             @id @default(autoincrement())
+  scholarshipName String
+  eligibility     String?
+  amount          Float
+  minimumCgpa     Float?
+  organizationId  Int
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  applications    Application[]
+  createdAt       DateTime        @default(now())
+  // Use enum for stricter status values: UPCOMING, ACTIVE, CLOSED
+  status          ScholarshipStatus  @default(UPCOMING)
+  // --- Coding Test fields ---
+  testMode        Boolean  @default(false)
+  testQuestionId  String?
+}
+
+model Application {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  scholarshipId  Int
+  user           User         @relation(fields: [userId], references: [id])
+  scholarship    Scholarship  @relation(fields: [scholarshipId], references: [id])
+  status         String       @default("Pending")
+  createdAt      DateTime     @default(now())
+
+  testScore      Int?
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  email     String
+  cgpa      Float?
+  college   String?
+  degree    String?
+  createdAt DateTime @default(now())
+}
+
+
+model ChatMessage {
+  id          Int           @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int
+  message     String
+  createdAt   DateTime      @default(now())
+
+  // 🔗 Relations
+  sender      User          @relation("UserSentMessages", fields: [senderId], references: [id])
+  receiver    Organization  @relation("OrgReceivedMessages", fields: [receiverId], references: [id])
+}
+
+enum Role {
+  USER
+  ORGANIZATION
+  ADMIN
+}
