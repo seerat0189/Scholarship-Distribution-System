@@ -1,8 +1,7 @@
-// console.log("--- SERVER.JS IS RESTARTING WITH THE NEW CODE (WITH CACHING) ---");
+console.log("--- SERVER.JS IS RESTARTING WITH THE NEW CODE ---");
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
-const path = require("path"); // Import path
 const axios = require("axios");
 const { Queue, Worker, QueueEvents } = require("bullmq");
 const IORedis = require("ioredis");
@@ -19,19 +18,19 @@ const JUDGE0_URL =
   process.env.JUDGE0_URL ||
   "https://ce.judge0.com/submissions?base64_encoded=false&wait=true";
 
-// ---- Redis connection options ----
+// ---- Redis connection options (the important part) ----
+// BullMQ requires maxRetriesPerRequest = null for blocking ops.
+// enableReadyCheck: false helps with containers starting up.
 const redisOptions = {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  // If you prefer host/port instead of URL, you can set:
+  // host: "127.0.0.1",
+  // port: 6379,
 };
 
+// Build the client from URL with options merged in:
 const connection = new IORedis(REDIS_URL, redisOptions);
-
-// --- START OF CACHING MODIFICATION ---
-// Use the same connection for caching
-const redisCache = connection;
-const QUESTIONS_CACHE_KEY = "cache:coding-questions";
-// --- END OF CACHING MODIFICATION ---
 
 // ---- Queue wiring ----
 const QUEUE_NAME = "code-execution-queue";
@@ -46,47 +45,17 @@ codeQueueEvents.on("failed", ({ jobId, failedReason }) =>
 );
 
 // ---- Load questions ----
-const QUESTIONS_FILE_PATH = path.join(__dirname, "questions.json");
-let questions = []; // This will be kept in sync by our get/set functions
-
-// --- NEW CACHE-AWARE FUNCTION ---
-async function getQuestions() {
-  try {
-    // 1. Try to get from Redis
-    const cachedQuestions = await redisCache.get(QUESTIONS_CACHE_KEY);
-    if (cachedQuestions) {
-      console.log("[Cache] HIT: Loaded questions from Redis.");
-      questions = JSON.parse(cachedQuestions); // Update in-memory
-      return questions;
-    }
-  } catch (e) {
-    console.error("Redis GET error:", e);
-  }
-
-  // 2. If miss, read from file
-  try {
-    console.log("[Cache] MISS: Loading questions from file...");
-    questions = JSON.parse(fs.readFileSync(QUESTIONS_FILE_PATH, "utf8"));
-    console.log(`[Cache] Loaded ${questions.length} questions from file.`);
-    
-    // 3. Store in Redis for next time
-    await redisCache.set(QUESTIONS_CACHE_KEY, JSON.stringify(questions));
-  } catch (e) {
-    console.error("Failed to load questions.json", e);
-    // Don't exit, but log the error
-  }
-  return questions;
+let questions = [];
+try {
+  questions = JSON.parse(fs.readFileSync("questions.json", "utf8"));
+  console.log(`Loaded ${questions.length} questions.`);
+} catch (e) {
+  console.error("Failed to load questions.json", e);
+  process.exit(1);
 }
 
-// Load questions on startup and populate cache
-getQuestions();
-// --- END NEW FUNCTION ---
-
-
 // ---- API: fetch random question ----
-// This endpoint is less critical, but we'll make it async just in case
-app.get("/api/question", async (req, res) => {
-  if (questions.length === 0) await getQuestions(); // Ensure questions are loaded
+app.get("/api/question", (req, res) => {
   const q = questions[Math.floor(Math.random() * questions.length)];
   res.json({
     id: q.id,
@@ -96,77 +65,11 @@ app.get("/api/question", async (req, res) => {
   });
 });
 
-// ---- API: List all question titles/ids (NOW CACHE-AWARE) ----
-app.get("/api/questions", async (req, res) => { // Make async
-  try {
-    const currentQuestions = await getQuestions(); // <-- Use getter
-    const questionList = currentQuestions.map((q) => ({
-      id: q.id,
-      title: q.title,
-    }));
-    res.json(questionList);
-  } catch (e) {
-    res.status(500).json({ error: "Failed to load questions" });
-  }
-});
-
-// ---- API: Add a new question (NOW CACHE-AWARE) ----
-app.post("/api/questions", async (req, res) => { // Make async
-  try {
-    const newQuestion = req.body;
-
-    // Basic validation
-    if (
-      !newQuestion ||
-      !newQuestion.id ||
-      !newQuestion.title ||
-      !newQuestion.description ||
-      !newQuestion.boilerplate ||
-      !newQuestion.testCases
-    ) {
-      return res.status(400).json({ error: "Invalid question JSON format." });
-    }
-
-    // Ensure our in-memory list is up to date before checking
-    await getQuestions(); 
-    
-    // Check for duplicate ID
-    if (questions.some(q => q.id === newQuestion.id)) {
-      return res.status(400).json({ error: `A question with the ID '${newQuestion.id}' already exists. Please use a unique ID.` });
-    }
-
-    // Add to in-memory array
-    questions.push(newQuestion);
-
-    // --- START OF CACHE INVALIDATION ---
-    // 1. Write to Redis (the new source of truth)
-    await redisCache.set(QUESTIONS_CACHE_KEY, JSON.stringify(questions));
-    
-    // 2. Write to file (as a backup/persistence)
-    fs.writeFileSync(
-      QUESTIONS_FILE_PATH,
-      JSON.stringify(questions, null, 2),
-      "utf8"
-    );
-    // --- END OF CACHE INVALIDATION ---
-    
-    console.log(`[API] Added new question: ${newQuestion.title} (ID: ${newQuestion.id})`);
-    
-    // Return the newly added question (specifically its ID/Title pair)
-    res.status(201).json({ id: newQuestion.id, title: newQuestion.title });
-
-  } catch (e) {
-    console.error("[API] Error adding question:", e);
-    res.status(500).json({ error: "Failed to save new question. " + e.message });
-  }
-});
-
-
-// ---- API: fetch question BY ID (NOW CACHE-AWARE) ----
-app.get("/api/question/:id", async (req, res) => { // Make async
+// ---- API: fetch question BY ID ----
+// ---- API: fetch question BY ID ----
+app.get("/api/question/:id", (req, res) => {
   const { id } = req.params;
-  const currentQuestions = await getQuestions(); // <-- Use getter
-  const question = currentQuestions.find((q) => q.id === id);
+  const question = questions.find((q) => q.id === id);
 
   if (!question) {
     return res.status(404).json({ error: "Question not found" });
@@ -176,6 +79,18 @@ app.get("/api/question/:id", async (req, res) => { // Make async
   res.json(question);
 });
 
+app.get("/api/questions", (req, res) => {
+  try {
+    // 'questions' is the array loaded from questions.json
+    const questionList = questions.map(q => ({
+      id: q.id,
+      title: q.title
+    }));
+    res.json(questionList);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load questions" });
+  }
+});
 
 // ---- API: submit -> enqueue job ----
 app.post("/api/submit", async (req, res) => {
@@ -186,11 +101,7 @@ app.post("/api/submit", async (req, res) => {
       .json({ error: "Missing code, language, or questionId" });
   }
 
-  const job = await codeQueue.add("run-test-cases", {
-    code,
-    language,
-    questionId,
-  });
+  const job = await codeQueue.add("run-test-cases", { code, language, questionId });
   res.json({ jobId: job.id });
 });
 
@@ -204,75 +115,57 @@ app.get("/api/result/:jobId", async (req, res) => {
 });
 
 // ---- Worker: executes Judge0 calls and compares outputs ----
-// The worker will use the `questions` array in memory,
-// which is kept up-to-date by the `getQuestions` function.
 const worker = new Worker(
   QUEUE_NAME,
   async (job) => {
     const { code, language, questionId } = job.data;
-    
-    // Find the question from the in-memory array
     const question = questions.find((q) => q.id === questionId);
-    
     if (!question) {
-      // If not found, try one more time to fetch from cache/file
-      const refreshedQuestions = await getQuestions();
-      const refreshedQuestion = refreshedQuestions.find((q) => q.id === questionId);
-      if (!refreshedQuestion) {
-        throw new Error(`Question not found: ${questionId}`);
+      throw new Error("Question not found");
+    }
+
+    const tests = [...question.testCases.sample, ...question.testCases.hidden];
+
+    const results = {
+      sampleResults: [],
+      hiddenPassed: 0,
+      hiddenTotal: question.testCases.hidden.length,
+      compileError: null,
+      runtimeError: null,
+    };
+
+    for (const t of tests) {
+      const run = await runJudge0(code, language, t.input);
+
+      if (run.compileOutput) {
+        results.compileError = run.compileOutput;
+        break;
       }
-      // Use the refreshed question
-      return runTestCases(refreshedQuestion, code, language);
+      if (run.stderr) {
+        results.runtimeError = run.stderr;
+        break;
+      }
+
+      const actual = (run.stdout || "").trim();
+      const expected = (t.expectedOutput || "").trim();
+      const passed = actual === expected;
+
+      if (t.isSample) {
+        results.sampleResults.push({
+          input: t.input,
+          actualOutput: actual,
+          expectedOutput: expected,
+          passed,
+        });
+      } else if (passed) {
+        results.hiddenPassed++;
+      }
     }
-    
-    // Run tests
-    return runTestCases(question, code, language);
+
+    return results; // stored as job.returnvalue
   },
-  { connection }
+  { connection } // <-- make sure Worker also receives the same connection with maxRetriesPerRequest: null
 );
-
-// --- NEW: Extracted test running logic into its own function ---
-async function runTestCases(question, code, language) {
-  const tests = [...question.testCases.sample, ...question.testCases.hidden];
-  
-  const results = {
-    sampleResults: [],
-    hiddenPassed: 0,
-    hiddenTotal: question.testCases.hidden.length,
-    compileError: null,
-    runtimeError: null,
-  };
-
-  for (const t of tests) {
-    const run = await runJudge0(code, language, t.input);
-
-    if (run.compileOutput) {
-      results.compileError = run.compileOutput;
-      break;
-    }
-    if (run.stderr) {
-      results.runtimeError = run.stderr;
-      break;
-    }
-
-    const actual = (run.stdout || "").trim();
-    const expected = (t.expectedOutput || "").trim();
-    const passed = actual === expected;
-
-    if (t.isSample) {
-      results.sampleResults.push({
-        input: t.input,
-        actualOutput: actual,
-        expectedOutput: expected,
-        passed,
-      });
-    } else if (passed) {
-      results.hiddenPassed++;
-    }
-  }
-  return results; // stored as job.returnvalue
-}
-
 
 worker.on("error", (err) => console.error("[Worker] error:", err));
 connection.on("error", (err) => console.error("[Redis] error:", err));

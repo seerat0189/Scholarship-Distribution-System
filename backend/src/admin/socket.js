@@ -1,9 +1,10 @@
-const { createServer } = require("http");
 const { Server } = require("socket.io");
-const { getClient } = require("./redisClient");
+const { PrismaClient } = require("@prisma/client");
 const { publish, subscribe } = require("./pubsub");
 
+const prisma = new PrismaClient();
 let ioInstance = null;
+const clients = new Map();
 
 function attachSocket(httpServer) {
   if (ioInstance) return ioInstance;
@@ -11,37 +12,48 @@ function attachSocket(httpServer) {
   const io = new Server(httpServer, {
     path: "/socket.io",
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
+      origin: "http://localhost:5173",
+      credentials: true,
     },
   });
 
   io.on("connection", (socket) => {
-    console.log("[SOCKET] Admin socket connected:", socket.id);
+    console.log("🔌 Socket connected:", socket.id);
 
-    socket.on("identify", (payload) => {
-      socket.join("admins");
-      console.log("[SOCKET] Admin joined admin room:", socket.id);
+    socket.on("identify", ({ id, role }) => {
+      if (!id || !role) return;
+      clients.set(`${role}_${id}`, socket.id);
+      socket.join(role);
+    });
+
+    socket.on("send_message", async (data) => {
+      const { senderId, receiverId, message } = data;
+
+      try {
+        await prisma.chatMessage.create({
+          data: { senderId, receiverId, message },
+        });
+      } catch (e) {
+        console.error("DB Error:", e.message);
+      }
+
+      socket.emit("receive_message", data);
+      socket.broadcast.emit("receive_message", data);
     });
 
     socket.on("admin:notify", (data) => {
-      console.log("[PUBSUB] Admin requested notify:", data);
-
-      publish("admin:notifications", {
-        type: "manual_notification",
-        data,
-        timestamp: new Date(),
-      });
+      publish("admin:notifications", data);
     });
 
     socket.on("disconnect", () => {
-      console.log("[SOCKET] Admin disconnected:", socket.id);
+      for (let [k, v] of clients.entries()) {
+        if (v === socket.id) clients.delete(k);
+      }
+      console.log("Disconnected:", socket.id);
     });
   });
 
   subscribe("admin:notifications", (msg) => {
-    console.log("[PUBSUB] Received broadcast:", msg);
-
     io.to("admins").emit("admin:notification", msg);
   });
 
@@ -49,4 +61,4 @@ function attachSocket(httpServer) {
   return io;
 }
 
-module.exports = { attachSocket, getIO: () => ioInstance };
+module.exports = { attachSocket };

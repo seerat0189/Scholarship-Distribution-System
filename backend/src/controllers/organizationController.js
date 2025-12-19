@@ -2,7 +2,7 @@ const prisma = require("../models/prismaClient.js");
 
 module.exports.createScholarship = async (req, res) => {
   // Destructure new fields from req.body
-  const { scholarshipName, eligibility, amount, minimumCgpa, testMode, testQuestionId } = req.body;
+  const { scholarshipName, eligibility, amount, minimumCgpa, testMode, testQuestionId, status } = req.body;
   const organizationId = req.user.id; 
 
   // --- START OF FIX ---
@@ -20,6 +20,17 @@ module.exports.createScholarship = async (req, res) => {
   const parsedCgpa = parseFloat(minimumCgpa);
   const finalCgpa = isNaN(parsedCgpa) ? null : parsedCgpa;
 
+  // 3. Validate status (optional). Accepts UPCOMING, ACTIVE, CLOSED (case-insensitive)
+  const allowedStatuses = ["UPCOMING", "ACTIVE", "CLOSED"];
+  let finalStatus = undefined; // let Prisma use default if not provided
+  if (typeof status !== "undefined" && status !== null) {
+    const s = String(status).toUpperCase();
+    if (!allowedStatuses.includes(s)) {
+      return res.status(400).json({ message: `Invalid status. Allowed: ${allowedStatuses.join(", ")}` });
+    }
+    finalStatus = s;
+  }
+
   // --- END OF FIX ---
 
   try {
@@ -27,10 +38,11 @@ module.exports.createScholarship = async (req, res) => {
       data: {
         scholarshipName,
         eligibility: eligibility || null,
-        amount: parseFloat(amount),
-        minimumCgpa: minimumCgpa ? parseFloat(minimumCgpa) : null,
+        amount: parsedAmount,
+        minimumCgpa: finalCgpa,
         organizationId: organizationId,
-        // --- ADD THESE LINES ---
+        // status: if provided use it, otherwise let Prisma default
+        ...(finalStatus ? { status: finalStatus } : {}),
         testMode: testMode || false,
         testQuestionId: testMode ? testQuestionId : null,
       },
@@ -47,37 +59,27 @@ module.exports.viewApplicants = async (req, res) => {
   const organizationId = req.user.id; // The logged-in organization
 
   try {
-    // SECURITY CHECK: First, verify the scholarship belongs to this org
-    const scholarship = await prisma.scholarship.findFirst({
-      where: {
-        id: parseInt(scholarshipId),
-        organizationId: organizationId,
-      }
+    // SECURITY CHECK: Ensure the scholarship belongs to this organization
+    const scholarship = await prisma.scholarship.findUnique({
+      where: { id: parseInt(scholarshipId) },
+      select: { organizationId: true, scholarshipName: true }
     });
-
-    // If scholarship not found or doesn't belong to org, deny access
-    if (!scholarship) {
-      return res.status(403).json({ message: "Access denied or scholarship not found." });
-    }
     
-    // --- MODIFICATION START ---
-    // Scholarship is valid, now find applicants and include scholarship details
+    if (!scholarship || scholarship.organizationId !== organizationId) {
+      return res.status(403).json({ message: "Access denied: You do not own this scholarship." });
+    }
+
     const applicants = await prisma.application.findMany({
       where: { scholarshipId: parseInt(scholarshipId) },
       include: { 
         user: {
           select: { name: true, email: true, cgpa: true, college: true, degree: true } // Select only safe user fields
         },
-        scholarship: { // Include scholarship info
-          select: {
-            testMode: true,
-            testQuestionId: true
-          }
+        scholarship: {
+          select: { scholarshipName: true }
         }
       },
     });
-    // --- MODIFICATION END ---
-    
     res.json(applicants);
   } catch (error) {
      res.status(500).json({ error: error.message });
@@ -92,6 +94,41 @@ module.exports.getMyScholarships = async (req, res) => {
       where: { organizationId: organizationId },
     });
     res.json(scholarships);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Allow an organization to update a scholarship's status
+module.exports.updateScholarshipStatus = async (req, res) => {
+  const { id } = req.params; // scholarship id
+  const { status } = req.body;
+  const organizationId = req.user.id;
+
+  if (!status) {
+    return res.status(400).json({ message: "Status is required" });
+  }
+
+  const allowedStatuses = ["UPCOMING", "ACTIVE", "CLOSED"];
+  const s = String(status).toUpperCase();
+  if (!allowedStatuses.includes(s)) {
+    return res.status(400).json({ message: `Invalid status. Allowed: ${allowedStatuses.join(", ")}` });
+  }
+
+  try {
+    // Ensure the scholarship exists and belongs to this organization
+    const scholarship = await prisma.scholarship.findUnique({ where: { id: parseInt(id) } });
+    if (!scholarship) return res.status(404).json({ message: "Scholarship not found" });
+    if (scholarship.organizationId !== organizationId) {
+      return res.status(403).json({ message: "Access denied: you do not own this scholarship" });
+    }
+
+    const updated = await prisma.scholarship.update({
+      where: { id: parseInt(id) },
+      data: { status: s },
+    });
+
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -1,14 +1,26 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import "../styles/Navbar.css";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, []);
   return (
-    <nav className="navbar-root">
-      <span className="navbar-logo">🎓 Scholarship Portal</span>
-        <div className="navbar-right">
+    <nav className="bg-gray-800 p-4 text-white flex justify-between items-center">
+      <span className="font-bold text-xl">🎓 Scholarship Portal</span>
+      <div className="flex items-center gap-4"> {/* Increased gap */}
         {!user ? (
           <>
             <Link to="/login" className="hover:text-indigo-400">Login</Link>
@@ -37,9 +49,41 @@ export default function Navbar() {
             )}
             {/* --- END OF MODIFICATION --- */}
 
-            <button onClick={logout} className="navbar-logout">
-              Logout
-            </button>
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen((prev) => !prev)}
+                className="rounded-full border border-slate-200 p-0"
+                aria-label="Toggle profile overlay"
+              >
+                <Avatar>
+                  <AvatarFallback>
+                    {user?.name?.[0] ?? user?.email?.[0] ?? "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {user?.name || "Scholar"}
+                  </p>
+                  <p className="text-xs text-slate-500">{user?.email}</p>
+                  <p className="mt-2 text-[11px] uppercase tracking-wider text-indigo-500">
+                    Role: {user?.role ?? "Guest"}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Link to="/profile" className="text-sm text-indigo-600 hover:underline">
+                      View profile
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="ml-auto rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

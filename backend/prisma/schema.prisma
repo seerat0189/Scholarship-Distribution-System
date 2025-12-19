@@ -11,6 +11,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enum to represent scholarship lifecycle states
+enum ScholarshipStatus {
+  UPCOMING
+  ACTIVE
+  CLOSED
+}
+
 model User {
   id             Int             @id @default(autoincrement())
   name           String
@@ -26,9 +33,8 @@ model User {
   applications   Application[]
   createdAt      DateTime        @default(now())
 
+  // 🧩 Relation: messages sent by this user
   sentMessages   ChatMessage[]   @relation("UserSentMessages")
-
-  @@index([name])
 }
 
 model Organization {
@@ -39,6 +45,7 @@ model Organization {
   scholarships     Scholarship[]
   createdAt        DateTime        @default(now())
 
+  // 🧩 Relation: messages received by this organization
   receivedMessages ChatMessage[]   @relation("OrgReceivedMessages")
 }
 
@@ -52,12 +59,11 @@ model Scholarship {
   organization    Organization    @relation(fields: [organizationId], references: [id])
   applications    Application[]
   createdAt       DateTime        @default(now())
-  status          String          @default("ACTIVE")
-
-  testMode        Boolean         @default(false)
+  // Use enum for stricter status values: UPCOMING, ACTIVE, CLOSED
+  status          ScholarshipStatus  @default(UPCOMING)
+  // --- Coding Test fields ---
+  testMode        Boolean  @default(false)
   testQuestionId  String?
-
-  @@index([scholarshipName])
 }
 
 model Application {
@@ -84,6 +90,7 @@ model Profile {
   createdAt DateTime @default(now())
 }
 
+
 model ChatMessage {
   id          Int           @id @default(autoincrement())
   senderId    Int
@@ -91,6 +98,7 @@ model ChatMessage {
   message     String
   createdAt   DateTime      @default(now())
 
+  // 🔗 Relations
   sender      User          @relation("UserSentMessages", fields: [senderId], references: [id])
   receiver    Organization  @relation("OrgReceivedMessages", fields: [receiverId], references: [id])
 }

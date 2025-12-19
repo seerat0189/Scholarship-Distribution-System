@@ -1,8 +1,6 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios'; // Your main app's API (Port 5000)
-import '../styles/CodingTest.css'; // <-- Import the new CSS
 
 // Your SEPARATE coding test server (Port 3000)
 const TEST_API_URL = 'http://localhost:3000';
@@ -31,11 +29,8 @@ export default function CodingTest() {
         return res.json();
       })
       .then(data => {
-        setQuestion(data);
-        // Set boilerplate only if code is empty (don't overwrite user's work)
-        if (code === "") {
-          setCode(data.boilerplate[language] || "");
-        }
+        setQuestion(data); // The 'data' object now includes 'testCases'
+        setCode(data.boilerplate[language] || "");
         setIsLoading(false);
       })
       .catch(err => {
@@ -43,7 +38,7 @@ export default function CodingTest() {
         setIsLoading(false);
         setResults({ error: "Could not load question. Make sure the test service is running and the Question ID is correct." });
       });
-  }, [questionId]); // Only run when questionId changes
+  }, [questionId]); // Only re-fetch if the questionId changes
 
   // Update boilerplate in editor when language changes
   const handleLanguageChange = (e) => {
@@ -110,6 +105,8 @@ export default function CodingTest() {
       return;
     }
     
+    // THIS IS THE LINE THAT WAS CRASHING
+    // It will now work because `question.testCases` is loaded
     if (!window.confirm(`Are you sure you want to submit? Your final score is ${bestScore}/${question.testCases.hidden.length}.`)) {
       return;
     }
@@ -124,7 +121,7 @@ export default function CodingTest() {
         testScore: bestScore, // Submit the user's best score
       });
       alert("Application submitted successfully!");
-      navigate("/my-applications"); // Navigate to My Applications page
+      navigate("/user"); // Now we exit
     } catch (error) {
       setIsLoading(false);
       alert("Error submitting application: " + (error.response?.data?.message || "Failed to apply"));
@@ -132,95 +129,99 @@ export default function CodingTest() {
   };
 
   return (
-    <div className="ct-root">
-      <div className="ct-container">
+    <div className="bg-gray-900 text-gray-200 font-sans p-4 md:p-8 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <header className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-green-400">Coding Test</h1>
+        </header>
         
-        {/* --- Left Panel: Question --- */}
-        <div className="ct-question-panel">
-          <h1 className="ct-question-title">
-            {question ? question.title : "Loading..."}
-          </h1>
-          <div className="ct-question-description">
-            {question ? (
-              // Use 'whitespace-pre-wrap' to respect newlines in the description
-              <p>{question.description.replace(/\\n/g, '\n')}</p>
-            ) : (
-              <p>Loading question details...</p>
-            )}
-          </div>
-        </div>
-
-        {/* --- Right Panel: Editor & Output --- */}
-        <div className="ct-editor-panel">
-          
-          {/* Code Editor */}
-          <div className="ct-code-box">
-            <div className="ct-editor-header">
-              <label htmlFor="language-select" className="ct-editor-label">Language:</label>
-              <select 
-                id="language-select"
-                className="ct-language-select"
-                value={language}
-                onChange={handleLanguageChange}
-                disabled={isLoading}
-              >
-                <option value="python">Python</option>
-                <option value="java">Java</option>
-              </select>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* --- Left Panel: Question --- */}
+          <div className="lg:w-2/5 bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h2 id="question-title" className="text-2xl font-semibold text-white mb-4">
+              {question ? question.title : "Loading..."}
+            </h2>
+            <div id="question-description" className="text-gray-300 prose prose-invert">
+              {question ? (
+                // Use 'whitespace-pre-wrap' to respect newlines in the description
+                <p className="whitespace-pre-wrap">{question.description.replace(/\\n/g, '\n')}</p>
+              ) : (
+                <p>Loading question details...</p>
+              )}
             </div>
-
-            <textarea
-              id="code-editor"
-              className="ct-code-textarea"
-              spellCheck="false"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={isLoading || !question}
-            />
-
-            <div className="ct-button-group">
-              <button
-                id="submit-code-btn"
-                className="ct-btn ct-btn-run"
-                onClick={handleRunCode}
-                disabled={isLoading || !question}
-              >
-                {isLoading ? "Running..." : "Run Code"}
-              </button>
-              <button
-                id="final-submit-btn"
-                className="ct-btn ct-btn-submit"
-                onClick={handleFinalSubmit}
-                disabled={isLoading || bestScore === -1} // Disabled until they run code at least once
-              >
-                {isLoading ? "Submitting..." : "Final Submit & Apply"}
-              </button>
-            </div>
-            {bestScore !== -1 && (
-              <p className="ct-score-info">
-                Your best score so far: {bestScore} / {question?.testCases?.hidden?.length || 0}
-              </p>
-            )}
           </div>
 
-          {/* Output/Results */}
-          <div id="output-container" className="ct-results-box">
-            <h3 className="ct-results-title">Results</h3>
-            
-            {isLoading && (
-              <div id="loader" className="ct-loader">
-                <div className="ct-spinner"></div>
-                <p>{loadingMessage}</p>
+          {/* --- Right Panel: Editor & Output --- */}
+          <div className="lg:w-3/S5 flex flex-col gap-6">
+            {/* Code Editor */}
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
+              <div className="flex justify-between items-center mb-4">
+                <label htmlFor="language-select" className="text-lg font-medium">Language:</label>
+                <select 
+                  id="language-select"
+                  className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"
+                  value={language}
+                  onChange={handleLanguageChange}
+                  disabled={isLoading}
+                >
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                </select>
               </div>
-            )}
 
-            {results && !isLoading && (
-              <RenderResults results={results} />
-            )}
+              <textarea
+                id="code-editor"
+                className="w-full p-4 rounded-lg font-mono bg-[#1e1e1e] text-[#d4d4d4] border border-gray-600 min-h-[400px]"
+                spellCheck="false"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                disabled={isLoading || !question}
+              />
 
-            {!results && !isLoading && (
-              <p className="ct-results-placeholder">Run your code to see the results.</p>
-            )}
+              <div className="flex gap-4 mt-4">
+                <button
+                  id="submit-code-btn"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 disabled:opacity-50"
+                  onClick={handleRunCode}
+                  disabled={isLoading || !question}
+                >
+                  Run Code
+                </button>
+                <button
+                  id="final-submit-btn"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 disabled:opacity-50"
+                  onClick={handleFinalSubmit}
+                  disabled={isLoading || bestScore === -1} // Disabled until they run code at least once
+                >
+                  Final Submit & Apply
+                </button>
+              </div>
+              {bestScore !== -1 && (
+                <p className="text-center text-yellow-400 mt-2">
+                  Your best score so far: {bestScore} / {question?.testCases?.hidden?.length || 0}
+                </p>
+              )}
+            </div>
+
+            {/* Output/Results */}
+            <div id="output-container" className="bg-gray-800 p-6 rounded-lg shadow-xl min-h-[150px]">
+              <h3 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Results</h3>
+              
+              {isLoading && (
+                <div id="loader" className="flex justify-center items-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+                  <p className="ml-3">{loadingMessage}</p>
+                </div>
+              )}
+
+              {results && !isLoading && (
+                <RenderResults results={results} />
+              )}
+
+              {!results && !isLoading && (
+                <p className="text-gray-400">Run your code to see the results.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -229,70 +230,63 @@ export default function CodingTest() {
 }
 
 // --- Helper Component to Display Results ---
+// --- Helper Component to Display Results ---
 function RenderResults({ results }) {
   if (results.error) {
     return (
-      <div className="ct-error-box">
-        <h4 className="ct-error-title">An Error Occurred</h4>
-        <pre className="ct-error-pre">{results.error}</pre>
+      <div>
+        <h4 className="text-xl font-semibold text-red-400 mb-2">An Error Occurred</h4>
+        <pre className="bg-gray-900 p-4 rounded-md whitespace-pre-wrap">{results.error}</pre>
       </div>
     );
   }
 
   if (results.compileError) {
     return (
-      <div className="ct-error-box">
-        <h4 className="ct-error-title">Compilation Error</h4>
-        <pre className="ct-error-pre">{results.compileError}</pre>
+      <div>
+        <h4 className="text-xl font-semibold text-red-400 mb-2">Compilation Error</h4>
+        <pre className="bg-gray-900 p-4 rounded-md whitespace-pre-wrap">{results.compileError}</pre>
       </div>
     );
   }
   
   if (results.runtimeError) {
     return (
-      <div className="ct-error-box">
-        <h4 className="ct-error-title">Runtime Error</h4>
-        <pre className="ct-error-pre">{results.runtimeError}</pre>
+      <div>
+        <h4 className="text-xl font-semibold text-red-400 mb-2">Runtime Error</h4>
+        <pre className="bg-gray-900 p-4 rounded-md whitespace-pre-wrap">{results.runtimeError}</pre>
       </div>
     );
   }
 
-  const allHiddenPassed = results.hiddenPassed === results.hiddenTotal;
-
   return (
-    <div className="ct-results-list">
+    <div>
       {/* Sample Tests */}
-      <div>
-        <h4 className="ct-results-subtitle">Sample Test Cases</h4>
-        <div className="ct-results-list">
-          {results.sampleResults && results.sampleResults.map((result, index) => {
-            const pass = result.passed;
-            return (
-              <div key={index} className="ct-test-case">
-                <div className={`ct-test-case-header ${pass ? 'pass' : 'fail'}`}>
-                  <span>{pass ? '✔' : '✖'}</span>
-                  <span>Sample Test {index + 1}: {pass ? 'Passed' : 'Failed'}</span>
-                </div>
-                {!pass && (
-                  <div className="ct-test-case-details">
-                    <div><strong>Input:</strong> <pre>{result.input}</pre></div>
-                    <div><strong>Your Output:</strong> <pre>{result.actualOutput}</pre></div>
-                    <div><strong>Expected:</strong> <pre>{result.expectedOutput}</pre></div>
-                  </div>
-                )}
+      <h4 className="text-lg font-semibold text-gray-200 mb-2">Sample Test Cases</h4>
+      <div className="space-y-4">
+        {results.sampleResults && results.sampleResults.map((result, index) => {
+          const pass = result.passed;
+          return (
+            <div key={index} className="bg-gray-700 p-4 rounded-lg">
+              <p className={`font-medium text-lg ${pass ? 'text-green-400' : 'text-red-400'}`}>
+                Sample Test {index + 1}: {pass ? 'Passed' : 'Failed'}
+              </p>
+              <div className="mt-2 text-sm text-gray-300 space-y-1">
+                <p><span className="font-semibold text-gray-400">Input:</span> <code className="bg-gray-900 px-1 rounded">{result.input}</code></p>
+                <p><span className="font-semibold text-gray-400">Your Output:</span> <code className="bg-gray-900 px-1 rounded">{result.actualOutput}</code></p>
+                <p><span className="font-semibold text-gray-400">Expected:</span> <code className="bg-gray-900 px-1 rounded">{result.expectedOutput}</code></p>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Hidden Tests */}
-      <div>
-        <h4 className="ct-results-subtitle">Hidden Test Cases</h4>
-        <div className={`ct-hidden-results ${allHiddenPassed ? 'pass' : 'fail'}`}>
-          {allHiddenPassed ? '✔' : '!'}{' '}
+      <h4 className="text-lg font-semibold text-gray-200 mt-6 mb-2">Hidden Test Cases</h4>
+      <div className="bg-gray-700 p-4 rounded-lg">
+        <p className={`text-xl font-bold ${results.hiddenPassed === results.hiddenTotal ? 'text-green-400' : 'text-yellow-400'}`}>
           Passed {results.hiddenPassed} out of {results.hiddenTotal} hidden test cases.
-        </div>
+        </p> {/* <-- THIS IS THE CORRECTED LINE */}
       </div>
     </div>
   );
