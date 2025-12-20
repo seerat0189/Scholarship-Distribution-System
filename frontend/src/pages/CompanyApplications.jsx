@@ -37,7 +37,7 @@ export default function CompanyApplications() {
           }));
           allApplications.push(...applicationsWithScholarship);
         } catch {
-          // Skip if no applicants or error - this is expected for scholarships with no applications
+          // Skip if no applicants
         }
       }
 
@@ -155,10 +155,13 @@ export default function CompanyApplications() {
                       <span className="ml-1 text-slate-600">{app.user.college || "N/A"}</span>
                     </div>
 
+                    {/* DYNAMIC SCORE DISPLAY */}
                     {app.testScore !== null && (
                       <div className="pt-1">
                         <span className="font-semibold text-slate-700 text-xs">Test Score:</span>
-                        <span className="ml-1 text-slate-600 text-xs">{app.testScore}/100</span>
+                        <span className="ml-1 text-slate-600 text-xs">
+                          {app.testScore} / {app.totalScore}
+                        </span>
                       </div>
                     )}
 

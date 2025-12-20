@@ -18,6 +18,7 @@ const clients = new Map();
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
+  // --- 1. CHAT LOGIC ---
   socket.on("register", ({ id, role }) => {
     clients.set(`${role}_${id}`, socket.id);
     console.log(`Registered ${role}_${id}`);
@@ -41,6 +42,18 @@ io.on("connection", (socket) => {
     io.to(socket.id).emit("receive_message", data);
   });
 
+  // --- 2. ADMIN LOGIC (Restored) ---
+  // This is required for Admin Dashboard notifications to work
+  socket.on("identify", (data) => {
+    socket.join("admins");
+    console.log(`Socket ${socket.id} joined admin room`);
+  });
+
+  socket.on("admin:notify", (data) => {
+    io.to("admins").emit("admin:notification", data);
+  });
+
+  // --- DISCONNECT ---
   socket.on("disconnect", () => {
     for (let [key, value] of clients.entries()) {
       if (value === socket.id) clients.delete(key);

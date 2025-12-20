@@ -6,6 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
 
+// FIX: Point to correct WebSocket port 4001
 const socket = io("http://localhost:4001", {
   transports: ["websocket"],
   reconnection: true,
@@ -86,7 +87,24 @@ export default function UserDashboard() {
     socket.emit("send_message", msgData);
     setMessage("");
   };
-
+// fghjsdfnkhdbfhsbg
+useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.get("/users/scholarships");
+        
+        // 🔍 ADD THIS LOG
+        console.log("🔥 SCHOLARSHIPS RECEIVED:", res.data); 
+        
+        setScholarships(res.data);
+      } catch (error) {
+        // 🔍 THIS WILL TELL YOU IF THE PORT IS WRONG
+        console.error("❌ API ERROR:", error); 
+      }
+    };
+    fetchData();
+  }, []);
+// gdfnlkgbj
   return (
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -130,6 +148,10 @@ export default function UserDashboard() {
                         <p className="text-sm text-slate-500">{s.eligibility}</p>
                         <p className="text-sm text-slate-700">
                           Amount: <span className="font-semibold">₹{s.amount}</span>
+                        </p>
+                        {/* FIX: Safe navigation for organization name */}
+                        <p className="text-sm text-slate-500">
+                          from {s.organization?.name || "Unknown Organization"}
                         </p>
                         {s.testMode && <p className="text-sm font-semibold text-indigo-600">Requires coding test</p>}
                       </div>

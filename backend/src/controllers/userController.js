@@ -2,21 +2,30 @@ const prisma = require("../models/prismaClient.js");
 
 module.exports.getScholarships = async (req, res) => {
   try {
+    // FIX: Select specific fields to prevent crashes if relation data is incomplete
     const scholarships = await prisma.scholarship.findMany({
       include: {
-        organization: true, // <-- This was 'company'
+        organization: {
+          select: {
+            name: true,
+            email: true
+          }
+        }, 
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
     res.json(scholarships);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error fetching scholarships:", error);
+    res.status(500).json({ error: "Failed to load scholarships" });
   }
 };
 
-// UPDATE applyForScholarship
 module.exports.applyForScholarship = async (req, res) => {
-  // testScore is now an optional field
-  const { scholarshipId, testScore } = req.body; 
+  // FIX: Capture totalScore from frontend
+  const { scholarshipId, testScore, totalScore } = req.body; 
   const userId = req.user.id;
 
   try {
@@ -35,33 +44,35 @@ module.exports.applyForScholarship = async (req, res) => {
       data: {
         scholarshipId: parseInt(scholarshipId),
         userId: userId,
-        testScore: testScore ? parseInt(testScore) : null, // Save the score if it exists
+        testScore: testScore !== undefined ? parseInt(testScore) : null,
+        // FIX: Save the total score to the database
+        totalScore: totalScore !== undefined ? parseInt(totalScore) : null,
       },
     });
     res.json({ message: "Applied successfully" });
   } catch (error) {
+    console.error("Apply Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// --- ADD THIS NEW FUNCTION ---
 module.exports.getMyApplications = async (req, res) => {
-  const userId = req.user.id; // Get the logged-in user's ID
+  const userId = req.user.id;
   try {
     const applications = await prisma.application.findMany({
       where: { userId: userId },
       include: {
-        scholarship: { // Include the scholarship details
+        scholarship: {
           select: {
             scholarshipName: true,
             organization: {
-              select: { name: true } // Include the organization's name
+              select: { name: true } 
             }
           }
         }
       },
       orderBy: {
-        createdAt: 'desc' // Show newest applications first
+        createdAt: 'desc' 
       }
     });
     res.json(applications);

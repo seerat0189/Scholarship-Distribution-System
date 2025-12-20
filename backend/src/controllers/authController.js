@@ -28,6 +28,8 @@ module.exports.register = async (req, res) => {
 
     // Admins and Users share same User table; organizations separate
     if (userRole === "ORGANIZATION") {
+      // NOTE: Use registerOrg for organizations to handle extra fields like website.
+      // This block is a fallback for generic /register calls.
       const organization = await prisma.organization.create({
         data: { name, email, password: hashed },
       });
@@ -47,6 +49,7 @@ module.exports.register = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error("Register Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -104,17 +107,28 @@ module.exports.login = async (req, res) => {
 
     res.json({ message: loginMessage, token, role });
   } catch (error) {
+    console.error("Login Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * REGISTER ORGANIZATION - (Legacy route retained for compatibility)
+ * REGISTER ORGANIZATION
+ * Explicit route for organizations to capture additional fields (website, etc.)
  */
 module.exports.registerOrg = async (req, res) => {
-  const { name, email, password } = req.body;
+  // ⬇️ FIX APPLIED: Added 'organizationWebsite' here
+  const { name, email, password, organizationName, organizationWebsite } = req.body;
+
+  // Use organizationName if provided, otherwise fallback to 'name'
+  const finalName = organizationName || name;
+
+  if (!finalName) {
+      return res.status(400).json({ message: "Organization Name is required" });
+  }
 
   try {
+    // Check for existing accounts
     const existingUser = await prisma.user.findUnique({ where: { email } });
     const existingOrg = await prisma.organization.findUnique({ where: { email } });
 
@@ -123,8 +137,16 @@ module.exports.registerOrg = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
+    
+    // Create organization
     const organization = await prisma.organization.create({
-      data: { name, email, password: hashed },
+      data: { 
+          name: finalName, 
+          email, 
+          password: hashed,
+          // Now organizationWebsite is defined and can be used
+          website: organizationWebsite || null 
+      },
     });
 
     delete organization.password;
@@ -133,6 +155,7 @@ module.exports.registerOrg = async (req, res) => {
       organization,
     });
   } catch (error) {
+    console.error("❌ Register Org Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
