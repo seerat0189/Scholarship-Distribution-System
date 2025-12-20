@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_ENV=test jest",
     "start": "node server.js"
   },
   "keywords": [],
@@ -17,5 +17,9 @@
     "express": "^5.1.0",
     "ioredis": "^5.8.2",
     "nodemon": "^3.1.10"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

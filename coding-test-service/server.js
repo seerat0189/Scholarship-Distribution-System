@@ -204,34 +204,27 @@ app.get("/api/result/:jobId", async (req, res) => {
 });
 
 // ---- Worker: executes Judge0 calls and compares outputs ----
-// The worker will use the `questions` array in memory,
-// which is kept up-to-date by the `getQuestions` function.
 const worker = new Worker(
   QUEUE_NAME,
   async (job) => {
     const { code, language, questionId } = job.data;
     
-    // Find the question from the in-memory array
     const question = questions.find((q) => q.id === questionId);
     
     if (!question) {
-      // If not found, try one more time to fetch from cache/file
       const refreshedQuestions = await getQuestions();
       const refreshedQuestion = refreshedQuestions.find((q) => q.id === questionId);
       if (!refreshedQuestion) {
         throw new Error(`Question not found: ${questionId}`);
       }
-      // Use the refreshed question
       return runTestCases(refreshedQuestion, code, language);
     }
     
-    // Run tests
     return runTestCases(question, code, language);
   },
   { connection }
 );
 
-// --- NEW: Extracted test running logic into its own function ---
 async function runTestCases(question, code, language) {
   const tests = [...question.testCases.sample, ...question.testCases.hidden];
   
@@ -270,16 +263,15 @@ async function runTestCases(question, code, language) {
       results.hiddenPassed++;
     }
   }
-  return results; // stored as job.returnvalue
+  return results; 
 }
 
 
 worker.on("error", (err) => console.error("[Worker] error:", err));
 connection.on("error", (err) => console.error("[Redis] error:", err));
 
-// ---- Judge0 helper ----
 async function runJudge0(code, language, stdin) {
-  const languageMap = { python: 71, java: 62 }; // Python3, Java
+  const languageMap = { python: 71, java: 62 }; 
   const language_id = languageMap[language];
   if (!language_id) {
     throw new Error(`Unsupported language: ${language}`);
@@ -298,7 +290,6 @@ async function runJudge0(code, language, stdin) {
   };
 }
 
-// ---- graceful shutdown ----
 function shutdown() {
   console.log("Shutting down...");
   Promise.allSettled([
@@ -313,6 +304,12 @@ process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 // ---- start ----
-app.listen(PORT, () =>
-  console.log(`Server running → http://localhost:${PORT}`)
-);
+// Wrap in NODE_ENV check to allow testing without binding to a port
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () =>
+    console.log(`Server running → http://localhost:${PORT}`)
+  );
+}
+
+// CRITICAL: Export app for supertest
+module.exports = app;
