@@ -8,4 +8,11 @@ router.get("/scholarships", protect(["USER"]), getScholarships);
 router.post("/apply", protect(["USER"]), applyForScholarship);
 
 router.get("/my-applications", protect(["USER"]), getMyApplications);
+
+// --- NEW CODE START ---
+const { getProfile, updateProfile } = require("../controllers/profileController");
+router.get("/profile", protect(["USER"]), getProfile);
+router.post("/profile", protect(["USER"]), updateProfile);
+// --- NEW CODE END ---
+
 module.exports = router;

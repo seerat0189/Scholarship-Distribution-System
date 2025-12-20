@@ -9,12 +9,14 @@ import MyApplications from "./MyApplications";
 import AdminDashboard from "../admin/pages/AdminDashboard";
 import AdminUsers from "../admin/pages/AdminUsers";
 import AdminNotifications from "../admin/pages/AdminNotifications";
+import Profile from "./Profile";
 
 export const publicRoutes = [
   { path: "/", element: <Login />, label: "Login" },
   { path: "/login", element: <Login />, label: "Login" },
   { path: "/register", element: <Register />, label: "Register" },
   { path: "/user", element: <UserDashboard />, label: "User Dashboard" },
+  { path: "/profile", element: <Profile />, label: "Profile" },
   { path: "/company", element: <CompanyDashboard />, label: "Organization Dashboard" },
   { path: "/company/applications", element: <CompanyApplications />, label: "Company Applications" },
   {
