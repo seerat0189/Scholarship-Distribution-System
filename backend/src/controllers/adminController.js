@@ -1,30 +1,55 @@
 const prisma = require("../models/prismaClient.js");
 const { getQueue } = require("../admin/queue");
 const { publish } = require("../admin/pubsub");
-const { indexer } = require("../admin/indexing");
 const { getClient: getRedis } = require("../admin/redisClient");
 
 /**
  * POST /api/admin/notify
- * body: { title, message }
+ * Saves notification to DB and broadcasts via PubSub/Socket
  */
 module.exports.notifyAdmins = async (req, res) => {
   try {
-    const { title, message } = req.body;
-    await publish("admin:notifications", { title, message, createdAt: new Date() });
+    const { title, message, type } = req.body;
 
+    // 1. Save to Database for persistence
+    const savedNotification = await prisma.notification.create({
+      data: {
+        message: `${title}: ${message}`,
+        type: type || "INFO",
+      },
+    });
+
+    // 2. Publish for live websocket broadcast
+    await publish("admin:notifications", savedNotification);
+
+    // 3. Optional: Add to background queue for logging/processing
     const q = getQueue("adminQueue");
     const job = await q.add("log-notification", { title, message }, { removeOnComplete: true });
 
-    res.json({ ok: true, jobId: job.id });
+    res.json({ ok: true, notification: savedNotification, jobId: job.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * POST /api/admin/reindex-user/:id
+ * GET /api/admin/notifications
+ * Fetches historical notifications for the admin dashboard
  */
+module.exports.getNotifications = async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50, // Limit to recent 50
+    });
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to load notifications" });
+  }
+};
+
+// --- REMAINDER OF EXISTING FUNCTIONS ---
+
 module.exports.reindexUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -41,9 +66,6 @@ module.exports.reindexUser = async (req, res) => {
   }
 };
 
-/**
- * POST /api/admin/cache/flush
- */
 module.exports.flushCache = async (req, res) => {
   try {
     const redis = getRedis();
@@ -66,9 +88,7 @@ module.exports.getAllUsers = async (req, res) => {
 module.exports.getAllScholarships = async (req, res) => {
   try {
     const scholarships = await prisma.scholarship.findMany({
-      include: {
-        organization: true,
-      },
+      include: { organization: true },
     });
     res.json(scholarships);
   } catch (error) {
@@ -86,53 +106,27 @@ module.exports.deleteUser = async (req, res) => {
   }
 };
 
-/**
- * GET /api/admin/stats
- * Fixed analytics + user growth calculation
- */
 module.exports.getAdminStats = async (req, res) => {
   try {
     const redis = getRedis();
     const cacheKey = "admin:stats";
-
-    // Try cache
     const cached = await redis.get(cacheKey);
-    if (cached) {
-      return res.set("X-Cache", "HIT").json(JSON.parse(cached));
-    }
+    if (cached) return res.set("X-Cache", "HIT").json(JSON.parse(cached));
 
-    // Basic counts
     const [totalUsers, totalScholarships, pendingApplications] = await Promise.all([
       prisma.user.count(),
       prisma.scholarship.count(),
       prisma.application.count({ where: { status: "Pending" } }),
     ]);
 
-    // ---------------------------------------------
-    // FIXED USER GROWTH (Prisma-only, always works)
-    // ---------------------------------------------
-    const users = await prisma.user.findMany({
-      select: { createdAt: true },
-    });
-
-    const growthMap = {
-      Jan: 0,
-      Feb: 0,
-      Mar: 0,
-      Apr: 0,
-      May: 0,
-    };
+    const users = await prisma.user.findMany({ select: { createdAt: true } });
+    const growthMap = { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0 };
 
     users.forEach((u) => {
       const month = u.createdAt.toLocaleString("en-US", { month: "short" });
-      if (growthMap[month] !== undefined) {
-        growthMap[month]++;
-      }
+      if (growthMap[month] !== undefined) growthMap[month]++;
     });
 
-    // ---------------------------------------------
-    // Scholarship distribution (ACTIVE / CLOSED / UPCOMING)
-    // ---------------------------------------------
     const scholarshipStatuses = await prisma.scholarship.groupBy({
       by: ["status"],
       _count: { status: true },
@@ -144,28 +138,18 @@ module.exports.getAdminStats = async (req, res) => {
       upcoming: scholarshipStatuses.find((s) => s.status === "UPCOMING")?._count.status || 0,
     };
 
-    // Final analytics object
     const analytics = {
       totalUsers,
       totalScholarships,
       pendingApplications,
-      userGrowth: {
-        jan: growthMap.Jan,
-        feb: growthMap.Feb,
-        mar: growthMap.Mar,
-        apr: growthMap.Apr,
-        may: growthMap.May,
-      },
+      userGrowth: { jan: growthMap.Jan, feb: growthMap.Feb, mar: growthMap.Mar, apr: growthMap.Apr, may: growthMap.May },
       scholarships,
       lastUpdated: new Date(),
     };
 
-    // Cache analytics for 2 minutes
     await redis.setex(cacheKey, 120, JSON.stringify(analytics));
-
     res.set("X-Cache", "MISS").json(analytics);
   } catch (error) {
-    console.error("Error fetching admin stats:", error);
     res.status(500).json({ error: error.message });
   }
 };
