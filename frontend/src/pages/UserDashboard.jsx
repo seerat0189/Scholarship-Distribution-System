@@ -6,7 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
 
-// FIX: Point to correct WebSocket port 4001
+// Point to correct WebSocket port 4001
 const socket = io("http://localhost:4001", {
   transports: ["websocket"],
   reconnection: true,
@@ -14,54 +14,110 @@ const socket = io("http://localhost:4001", {
 
 export default function UserDashboard() {
   const { user } = useContext(AuthContext);
-  const [scholarships, setScholarships] = useState([]);
   const navigate = useNavigate();
+  const [scholarships, setScholarships] = useState([]);
 
+  // --- CHAT & PRESENCE STATE ---
   const [showChat, setShowChat] = useState(false);
+  const [contacts, setContacts] = useState([]); // List of Organizations
+  const [activeContact, setActiveContact] = useState(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [onlineOrgs, setOnlineOrgs] = useState(new Set()); // IDs of online orgs
   const chatEndRef = useRef(null);
 
-  const myId = 1;
-  const receiverId = 2;
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // 1. WebSocket Registration & Presence Listeners
   useEffect(() => {
-    socket.emit("register", { id: myId, role: "user" });
+    if (user?.id) {
+      socket.emit("register", { id: user.id, role: "user" });
+    }
+
+    // Initial list of online orgs
+    socket.on("online_orgs_list", (ids) => {
+      setOnlineOrgs(new Set(ids));
+    });
+
+    // Real-time updates
+    socket.on("org_status", ({ orgId, status }) => {
+      setOnlineOrgs((prev) => {
+        const newSet = new Set(prev);
+        if (status) newSet.add(orgId);
+        else newSet.delete(orgId);
+        return newSet;
+      });
+    });
+
+    // Receive Message
     socket.on("receive_message", (msg) => {
-      if (msg.receiverId === myId || msg.senderId === myId) {
+      if (activeContact && msg.senderRole === "organization" && msg.senderId === activeContact.id) {
         setMessages((prev) => [...prev, msg]);
       }
     });
-    return () => socket.off("receive_message");
-  }, []);
 
-  useEffect(scrollToBottom, [messages]);
+    return () => {
+      socket.off("online_orgs_list");
+      socket.off("org_status");
+      socket.off("receive_message");
+    };
+  }, [user, activeContact]);
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, showChat]);
+
+  // 2. Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.get("/users/scholarships");
         setScholarships(res.data);
+
+        // Fetch contacts (Assume API returns all available organizations to chat with)
+        const contactsRes = await api.get("/chat/contacts");
+        setContacts(contactsRes.data);
       } catch (error) {
-        console.error("Failed to load scholarships", error);
+        console.error("Failed to load data", error);
       }
     };
     fetchData();
   }, []);
 
+  // 3. Load Chat History
+  useEffect(() => {
+    if (!activeContact) return;
+    const fetchHistory = async () => {
+      try {
+        const res = await api.get(`/chat/history/${activeContact.id}`);
+        setMessages(res.data);
+      } catch (err) {
+        console.error("Failed to fetch history", err);
+      }
+    };
+    fetchHistory();
+  }, [activeContact]);
+
+  const sendMessage = () => {
+    if (!message.trim() || !activeContact) return;
+    const msgData = {
+      senderId: user.id,
+      senderRole: "user",
+      receiverId: activeContact.id,
+      receiverRole: "organization",
+      message,
+    };
+    socket.emit("send_message", msgData);
+    setMessages((prev) => [...prev, { ...msgData, sender: "USER" }]);
+    setMessage("");
+  };
+
   const apply = async (scholarship) => {
     if (scholarship.status !== "ACTIVE") {
-      alert(`This scholarship is not open for applications. Status: ${scholarship.status}`);
+      alert(`This scholarship is not open. Status: ${scholarship.status}`);
       return;
     }
-
     if (scholarship.testMode) {
       if (!scholarship.testQuestionId) {
-        alert("Error: This scholarship is in test mode but has no question ID.");
+        alert("Error: Test mode enabled but no question ID found.");
         return;
       }
       navigate(`/test/${scholarship.id}/${scholarship.testQuestionId}`);
@@ -69,114 +125,67 @@ export default function UserDashboard() {
       try {
         await api.post("/users/apply", { scholarshipId: scholarship.id });
         alert("Applied successfully!");
+        // Update contacts
+        const contactsRes = await api.get("/chat/contacts");
+        setContacts(contactsRes.data);
       } catch (error) {
         alert("Error: " + (error.response?.data?.message || "Failed to apply"));
       }
     }
   };
 
-  const sendMessage = () => {
-    if (!message.trim()) return;
-    const msgData = {
-      senderId: myId,
-      senderRole: "user",
-      receiverId,
-      receiverRole: "organization",
-      message,
-    };
-    socket.emit("send_message", msgData);
-    setMessage("");
-  };
-// fghjsdfnkhdbfhsbg
-useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await api.get("/users/scholarships");
-        
-        // 🔍 ADD THIS LOG
-        console.log("🔥 SCHOLARSHIPS RECEIVED:", res.data); 
-        
-        setScholarships(res.data);
-      } catch (error) {
-        // 🔍 THIS WILL TELL YOU IF THE PORT IS WRONG
-        console.error("❌ API ERROR:", error); 
-      }
-    };
-    fetchData();
-  }, []);
-// gdfnlkgbj
   return (
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        {/* Welcome Card */}
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Here’s a quick snapshot of your account.</CardDescription>
+            <CardDescription>Your academic opportunities await.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <CardContent className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Signed in as</p>
-              <h3 className="text-xl font-semibold text-slate-900">{user?.name || user?.email || "Scholar"}</h3>
-              <p className="text-sm text-slate-500">{user?.email || "No email available"}</p>
+              <h3 className="text-xl font-semibold text-slate-900">{user?.name || "Student"}</h3>
+              <p className="text-sm text-slate-500">{user?.email}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-2">
               <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
-                {user?.role ?? "Guest"}
+                {user?.role}
               </span>
               <Link to="/profile">
-                <Button size="sm" variant="outline">
-                  View Profile
-                </Button>
+                <Button size="sm" variant="outline">Profile</Button>
               </Link>
             </div>
           </CardContent>
         </Card>
 
+        {/* Scholarships */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Available Scholarships</CardTitle>
-            <CardDescription>Filter, review, and apply for the latest opportunities.</CardDescription>
+            <CardDescription>Latest opportunities from organizations.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
               {scholarships.map((s) => (
                 <Card key={s.id} className="space-y-4">
-                  <CardContent className="space-y-2">
-                    <div className="flex items-start justify-between gap-4">
+                  <CardContent className="space-y-2 pt-4">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-900">{s.scholarshipName}</h3>
+                        <h3 className="text-lg font-semibold">{s.scholarshipName}</h3>
                         <p className="text-sm text-slate-500">{s.eligibility}</p>
-                        <p className="text-sm text-slate-700">
-                          Amount: <span className="font-semibold">₹{s.amount}</span>
-                        </p>
-                        {/* FIX: Safe navigation for organization name */}
-                        <p className="text-sm text-slate-500">
-                          from {s.organization?.name || "Unknown Organization"}
-                        </p>
-                        {s.testMode && <p className="text-sm font-semibold text-indigo-600">Requires coding test</p>}
+                        <p className="text-sm font-medium">₹{s.amount}</p>
+                        <p className="text-xs text-slate-400">By {s.organization?.name || "Organization"}</p>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          s.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : s.status === "UPCOMING"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-rose-100 text-rose-700"
-                        }`}
-                      >
+                      <span className={`px-2 py-1 text-xs rounded-full font-bold ${
+                        s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
                         {s.status}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Button size="sm" onClick={() => apply(s)} disabled={s.status !== "ACTIVE"}>
-                        {s.testMode ? "Start Test & Apply" : "Apply Now"}
-                      </Button>
-                      {s.status !== "ACTIVE" && (
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          {s.status} · Applications paused
-                        </span>
-                      )}
-                    </div>
+                    <Button size="sm" onClick={() => apply(s)} disabled={s.status !== "ACTIVE"}>
+                      {s.testMode ? "Take Test & Apply" : "Apply Now"}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -185,44 +194,90 @@ useEffect(() => {
         </Card>
       </div>
 
+      {/* --- CHAT SIDEBAR --- */}
       <button
         onClick={() => setShowChat(!showChat)}
-        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-3xl text-white shadow-xl transition hover:bg-indigo-500"
-        title="Chat with organization"
+        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-3xl text-white shadow-xl transition hover:bg-indigo-500 z-50"
       >
         💬
       </button>
 
       {showChat && (
-        <div className="fixed right-6 bottom-24 max-h-[420px] w-80 rounded-2xl border border-slate-200 bg-white shadow-2xl">
-          <div className="rounded-t-2xl bg-indigo-600 px-4 py-3 text-center text-sm font-semibold text-white">
-            Live Chat (User)
+        <div className="fixed right-6 bottom-24 h-[500px] w-80 md:w-96 rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+          <div className="bg-indigo-600 px-4 py-3 flex justify-between items-center text-white">
+            <span className="font-semibold text-sm">
+              {activeContact ? activeContact.name : "Organizations"}
+            </span>
+            {activeContact && (
+              <button onClick={() => setActiveContact(null)} className="text-xs bg-indigo-700 px-2 py-1 rounded">
+                Back
+              </button>
+            )}
           </div>
-          <div className="flex h-48 flex-col gap-2 overflow-y-auto p-4 text-sm text-slate-800">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`rounded-lg px-3 py-2 text-white ${
-                  m.senderId === myId ? "bg-indigo-500 self-end text-right" : "bg-slate-800 self-start"
-                }`}
-              >
-                {m.message}
+
+          <div className="flex-1 overflow-y-auto bg-slate-50">
+            {!activeContact ? (
+              // Contact List
+              <div className="p-2 space-y-1">
+                {contacts.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 mt-10">No organizations found.</p>
+                ) : (
+                  contacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => setActiveContact(contact)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-white cursor-pointer transition border border-transparent hover:border-slate-100"
+                    >
+                      <div className="relative">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                          {contact.name.charAt(0)}
+                        </div>
+                        {/* ONLINE DOT */}
+                        {onlineOrgs.has(contact.id) && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white"></span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{contact.name}</p>
+                        <p className="text-xs text-slate-500">{contact.email}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
-            <div ref={chatEndRef}></div>
+            ) : (
+              // Messages
+              <div className="p-4 flex flex-col gap-2">
+                {messages.map((m, i) => {
+                  const isMe = m.sender === "USER" || m.senderRole === "user";
+                  return (
+                    <div
+                      key={i}
+                      className={`max-w-[80%] px-3 py-2 text-sm rounded-2xl shadow-sm ${
+                        isMe ? "self-end bg-indigo-600 text-white rounded-br-none" : "self-start bg-white text-slate-800 rounded-bl-none"
+                      }`}
+                    >
+                      {m.message}
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef}></div>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"
-            />
-            <Button size="sm" onClick={sendMessage}>
-              Send
-            </Button>
-          </div>
+
+          {activeContact && (
+            <div className="border-t p-3 bg-white flex gap-2">
+              <input
+                className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Type a message..."
+              />
+              <Button size="sm" onClick={sendMessage} className="rounded-full bg-indigo-600">Send</Button>
+            </div>
+          )}
         </div>
       )}
     </div>

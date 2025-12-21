@@ -8,7 +8,7 @@ const userRoutes = require("./routes/userRoutes.js");
 const companyRoutes = require("./routes/organizationRoutes.js");
 const adminRoutes = require("./routes/adminRoutes.js");
 const errorHandler = require("./middleware/errorMiddleware.js");
-
+const chatRoutes = require("./routes/chatRoutes.js"); // Add this
 dotenv.config();
 
 const app = express();
@@ -22,7 +22,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/admin", adminRoutes);
-
+app.use("/api/chat", chatRoutes); // Add this
 // Error Handling
 app.use(errorHandler);
 

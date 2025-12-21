@@ -33,8 +33,8 @@ model User {
   applications   Application[]
   createdAt      DateTime        @default(now())
 
-  // 🧩 Relation: messages sent by this user
-  sentMessages   ChatMessage[]   @relation("UserSentMessages")
+// 🧩 Relation: All chats involving this user
+  chatMessages   ChatMessage[]
 }
 
 model Organization {
@@ -46,9 +46,9 @@ model Organization {
   scholarships     Scholarship[]
   createdAt        DateTime        @default(now())
 
-  // 🧩 Relation: messages received by this organization
-  receivedMessages ChatMessage[]   @relation("OrgReceivedMessages")
-}
+  // 🧩 Relation: All chats involving this organization
+  chatMessages     ChatMessage[]
+  }
 
 model Scholarship {
   id              Int             @id @default(autoincrement())
@@ -100,15 +100,20 @@ model Notification {
 }
 
 model ChatMessage {
-  id          Int           @id @default(autoincrement())
-  senderId    Int
-  receiverId  Int
-  message     String
-  createdAt   DateTime      @default(now())
+  id             Int           @id @default(autoincrement())
+  message        String
+  createdAt      DateTime      @default(now())
+
+  // Participants
+  userId         Int
+  organizationId Int
+  
+  // Who sent this specific message? (USER or ORGANIZATION)
+  sender         Role          
 
   // 🔗 Relations
-  sender      User          @relation("UserSentMessages", fields: [senderId], references: [id])
-  receiver    Organization  @relation("OrgReceivedMessages", fields: [receiverId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id])
 }
 
 enum Role {

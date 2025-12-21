@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import api from "../api/axios";
+import { AuthContext } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +37,9 @@ const initialTestCaseForm = {
 };
 
 export default function CompanyDashboard() {
+  const { user } = useContext(AuthContext);
+
+  // --- UI STATES (Original) ---
   const [form, setForm] = useState({
     scholarshipName: "",
     eligibility: "",
@@ -57,46 +61,55 @@ export default function CompanyDashboard() {
   const [newTestCase, setNewTestCase] = useState(initialTestCaseForm);
   const [addedTestCases, setAddedTestCases] = useState([]);
 
+  // --- CHAT & PRESENCE STATE (New) ---
   const [showChat, setShowChat] = useState(false);
+  const [contacts, setContacts] = useState([]); // List of Applicants (Users)
+  const [activeContact, setActiveContact] = useState(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set()); // IDs of online users
   const chatEndRef = useRef(null);
 
-  const myId = 2; 
-  const receiverId = 1;
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // 1. Register & Presence
   useEffect(() => {
-    socket.emit("register", { id: myId, role: "organization" });
+    if (user?.id) {
+      socket.emit("register", { id: user.id, role: "organization" });
+    }
+
+    // Initial Online List
+    socket.on("online_users_list", (ids) => {
+      setOnlineUsers(new Set(ids));
+    });
+
+    // Real-time Presence Updates
+    socket.on("user_status", ({ userId, status }) => {
+      setOnlineUsers((prev) => {
+        const newSet = new Set(prev);
+        if (status) newSet.add(userId);
+        else newSet.delete(userId);
+        return newSet;
+      });
+    });
+
+    // Chat
     socket.on("receive_message", (msg) => {
-      if (
-        (msg.receiverId === myId && msg.senderId === receiverId) ||
-        (msg.senderId === myId && msg.receiverId === receiverId)
-      ) {
+      if (activeContact && msg.senderRole === "user" && msg.senderId === activeContact.id) {
         setMessages((prev) => [...prev, msg]);
       }
     });
-    return () => socket.off("receive_message");
-  }, []);
 
-  useEffect(scrollToBottom, [messages]);
-
-  const sendMessage = () => {
-    if (!message.trim()) return;
-    const msgData = {
-      senderId: myId,
-      senderRole: "organization",
-      receiverId,
-      receiverRole: "user",
-      message,
+    return () => {
+      socket.off("online_users_list");
+      socket.off("user_status");
+      socket.off("receive_message");
     };
-    socket.emit("send_message", msgData);
-    setMessage("");
-  };
+  }, [user, activeContact]);
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, showChat]);
+
+  // 2. Fetch Data
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -112,9 +125,7 @@ export default function CompanyDashboard() {
       }
     };
     fetchQuestions();
-  }, []);
 
-  useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.get("/companies/my-scholarships");
@@ -122,13 +133,46 @@ export default function CompanyDashboard() {
         const map = {};
         res.data.forEach((s) => (map[s.id] = s.status));
         setStatusMap(map);
+
+        // Fetch contacts (Applicants)
+        const contactsRes = await api.get("/chat/contacts");
+        setContacts(contactsRes.data);
       } catch (error) {
-        console.error("Failed to fetch scholarships", error);
+        console.error("Failed to fetch data", error);
       }
     };
     fetchData();
   }, []);
 
+  // 3. Load History
+  useEffect(() => {
+    if (!activeContact) return;
+    const fetchHistory = async () => {
+      try {
+        const res = await api.get(`/chat/history/${activeContact.id}`);
+        setMessages(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchHistory();
+  }, [activeContact]);
+
+  const sendMessage = () => {
+    if (!message.trim() || !activeContact) return;
+    const msgData = {
+      senderId: user.id,
+      senderRole: "organization",
+      receiverId: activeContact.id,
+      receiverRole: "user",
+      message,
+    };
+    socket.emit("send_message", msgData);
+    setMessages((prev) => [...prev, { ...msgData, sender: "ORGANIZATION" }]);
+    setMessage("");
+  };
+
+  // --- FORM HANDLERS (Reverted to Original) ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm({
@@ -474,6 +518,7 @@ export default function CompanyDashboard() {
         </main>
       </div>
 
+      {/* --- CHAT SIDEBAR (Organization) --- */}
       <button
         onClick={() => setShowChat(!showChat)}
         className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-3xl text-white shadow-xl transition hover:bg-emerald-500 z-50"
@@ -482,31 +527,83 @@ export default function CompanyDashboard() {
       </button>
 
       {showChat && (
-        <div className="fixed right-6 bottom-24 max-h-[420px] w-80 rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 flex flex-col">
-          <div className="rounded-t-2xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white">
-            Live Chat (Organization)
+        <div className="fixed right-6 bottom-24 h-[500px] w-80 md:w-96 rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+          <div className="bg-emerald-600 px-4 py-3 flex justify-between items-center text-white">
+            <span className="font-semibold text-sm">
+              {activeContact ? activeContact.name : "Applicants"}
+            </span>
+            {activeContact && (
+              <button onClick={() => setActiveContact(null)} className="text-xs bg-emerald-700 px-2 py-1 rounded">
+                Back
+              </button>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto p-4 text-sm text-slate-800 space-y-2 h-64">
-            {messages.map((m, i) => (
-              <div key={i} className={`rounded-lg px-3 py-2 text-white max-w-[85%] break-words ${
-                  m.senderId === myId ? "bg-emerald-500 self-end ml-auto" : "bg-slate-800 mr-auto"
-                }`}>
-                {m.message}
+
+          <div className="flex-1 overflow-y-auto bg-slate-50">
+            {!activeContact ? (
+              // Contact List
+              <div className="p-2 space-y-1">
+                {contacts.length === 0 ? (
+                  <p className="text-center text-sm text-slate-400 mt-10">No applicants found yet.</p>
+                ) : (
+                  contacts.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => setActiveContact(c)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-white cursor-pointer hover:shadow-sm border border-transparent hover:border-slate-100"
+                    >
+                      <div className="relative">
+                        <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                          {c.name.charAt(0)}
+                        </div>
+                        {/* ONLINE DOT */}
+                        {onlineUsers.has(c.id) && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white"></span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-slate-800">{c.name}</p>
+                        <p className="text-xs text-slate-500">{c.email}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
-            <div ref={chatEndRef}></div>
+            ) : (
+              // Messages
+              <div className="p-4 flex flex-col gap-2">
+                {messages.map((m, i) => {
+                  const isMe = m.sender === "ORGANIZATION" || m.senderRole === "organization";
+                  return (
+                    <div
+                      key={i}
+                      className={`max-w-[80%] px-3 py-2 text-sm rounded-2xl shadow-sm ${
+                        isMe ? "self-end bg-emerald-600 text-white rounded-br-none" : "self-start bg-white text-slate-800 rounded-bl-none"
+                      }`}
+                    >
+                      {m.message}
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef}></div>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2 bg-slate-50 rounded-b-2xl">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type..."
-              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100"
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <Button size="sm" onClick={sendMessage} className="bg-emerald-600 hover:bg-emerald-700">Send</Button>
-          </div>
+
+          {activeContact && (
+            <div className="border-t p-3 bg-white flex gap-2">
+              <input
+                className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Reply..."
+              />
+              <Button size="sm" onClick={sendMessage} className="bg-emerald-600 rounded-full">
+                Send
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
