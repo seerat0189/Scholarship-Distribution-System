@@ -149,4 +149,9 @@ io.on("connection", (socket) => {
 });
 
 const PORT = 4001;
-server.listen(PORT, () => console.log(`🚀 WebSocket Server running on :${PORT}`));
+
+const httpServer = server.listen(PORT, () => {
+  console.log(`WebSocket Server running on :${PORT}`);
+});
+
+module.exports = { httpServer, io };
