@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test jest",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "prisma:generate": "prisma generate",
@@ -25,11 +25,16 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "ioredis": "^5.8.2",
+    "jest": "^30.2.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.10",
     "nodemon": "^3.1.11",
     "prisma": "^6.19.0",
     "socket.io": "^4.8.1",
-    "socket.io-redis": "^5.4.0"
+    "socket.io-redis": "^5.4.0",
+    "supertest": "^7.1.4"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }
