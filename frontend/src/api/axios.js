@@ -1,8 +1,11 @@
 import axios from "axios";
 
-// Reverted to 5001
+// Use Vite's environment variable feature. 
+// If VITE_API_URL is set, use it; otherwise fallback to localhost (for local dev).
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+
 const api = axios.create({
-  baseURL: "http://localhost:5001/api", 
+  baseURL: baseURL, 
 });
 
 api.interceptors.request.use((config) => {

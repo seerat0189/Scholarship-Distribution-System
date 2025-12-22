@@ -1,0 +1,23 @@
+# Use an official Node.js runtime as a parent image
+FROM node:20-alpine
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# --- FIX IS HERE: Copy the app code BEFORE running prisma generate ---
+COPY . .
+
+# Now generating the client will work because the schema file exists
+RUN npx prisma generate
+
+# Expose ports
+EXPOSE 5001 4001
+
+# Default command
+CMD ["npm", "start"]

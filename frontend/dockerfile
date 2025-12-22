@@ -1,0 +1,31 @@
+# --- Stage 1: Build the React App ---
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# 1. Define ALL 4 build arguments
+ARG VITE_BACKEND_URL
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_CODING_TEST_URL
+
+# 2. Set them as environment variables
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_CODING_TEST_URL=$VITE_CODING_TEST_URL
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+# Build the app (Vite will now bake these IP addresses into the HTML/JS)
+RUN npm run build
+
+# --- Stage 2: Serve with Nginx ---
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

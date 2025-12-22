@@ -1,35 +1,64 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: scholarship-postgres
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: scholarship_system
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+  # 1. The Shared Redis (Used by Backend, WS, and Coding Service)
   redis:
-    image: redis:7-alpine
-    container_name: scholarship-redis
+    image: redis:alpine
+    container_name: scholarship_redis
+    restart: always
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
+  # 2. The Main Backend API
+  backend:
+    build: ./backend
+    container_name: scholarship_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=${DATABASE_URL} # We will set this on the server
+      - REDIS_URL=redis://redis:6379 # Connects to the service named 'redis' above
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - redis
 
-volumes:
-  postgres_data:
-  redis_data:
+  # 3. The WebSocket Server (Same code as backend, different command)
+  websocket:
+    build: ./backend
+    container_name: scholarship_websocket
+    restart: always
+    command: ["node", "src/ws/server.js"]
+    ports:
+      - "4001:4001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - backend
+
+  # 4. The Coding Test Microservice
+  coding_service:
+    build: ./coding-test-service
+    container_name: scholarship_coding_service
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      # If your coding service needs to talk to the backend, use this internal URL:
+      # - BACKEND_URL=http://backend:5000 
+    depends_on:
+      - redis
+
+  # 5. The Frontend (React + Nginx)
+  frontend:
+    build: 
+      context: ./frontend
+    container_name: scholarship_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
