@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios'; 
 
-const TEST_API_URL = 'http://localhost:3000';
+const TEST_API_URL = import.meta.env.VITE_CODING_TEST_URL || 'http://localhost:3000';
 
 export default function CodingTest() {
   const { scholarshipId, questionId } = useParams();

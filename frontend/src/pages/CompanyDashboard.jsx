@@ -15,10 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import CompanySidebar from "../components/CompanySidebar";
 
-const TEST_API_URL = "http://localhost:3000";
+const TEST_API_URL = import.meta.env.VITE_CODING_TEST_URL || "http://localhost:3000";
 
 // Reverted to 4001
-const socket = io("http://localhost:4001", {
+const socket = io(import.meta.env.VITE_WS_URL || "http://localhost:4001", {
   transports: ["websocket"],
   reconnection: true,
 });
